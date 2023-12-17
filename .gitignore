@@ -1,3 +1,5 @@
 dataset/
 credentials.json
 token.json
+venv
+.idea
