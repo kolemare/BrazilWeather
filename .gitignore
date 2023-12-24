@@ -3,3 +3,6 @@ credentials.json
 token.json
 venv
 .idea
+hadoop
+kafka
+airflow

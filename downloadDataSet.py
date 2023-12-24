@@ -46,6 +46,7 @@ def download_file(service, file_id, file_name):
 
 # Function to extract the zip file
 def extract_zip(file_name, extract_to):
+    print("Extracting...")
     with zipfile.ZipFile(file_name, 'r') as zip_ref:
         zip_ref.extractall(extract_to)
 
