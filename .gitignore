@@ -4,5 +4,6 @@ token.json
 venv
 .idea
 hadoop
+!/hadoop/etc/hadoop/core-site.xml
 kafka
 airflow

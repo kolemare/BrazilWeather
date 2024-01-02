@@ -74,7 +74,7 @@ echo "Initializing Apache Airflow..."
 export AIRFLOW_HOME
 airflow db init
 
-# Hadoop installation directory (in the same folder as the script)
+# Determine the path to the 'hadoop' directory relative to the script location
 HADOOP_DIR="$(pwd)/hadoop"
 
 # Check if Hadoop is already installed
@@ -91,6 +91,13 @@ if [ ! -d "$HADOOP_DIR" ]; then
     # Move Hadoop to the project directory
     echo "Moving Hadoop to the project directory..."
     mv hadoop-3.3.6 $HADOOP_DIR
+
+    # Set Hadoop environment variables
+    echo "Setting Hadoop environment variables..."
+    export HADOOP_HOME=$HADOOP_DIR
+    export PATH=$PATH:$HADOOP_HOME/bin
+    echo "export HADOOP_HOME=$HADOOP_DIR" >> ~/.bashrc
+    echo "export PATH=$PATH:$HADOOP_HOME/bin" >> ~/.bashrc
 fi
 
 # Kafka installation directory (in the same folder as the script)
