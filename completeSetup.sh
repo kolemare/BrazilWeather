@@ -63,7 +63,7 @@ pip install --upgrade pip
 
 # Install required libraries
 echo "Installing required libraries..."
-pip install google-api-python-client google-auth-oauthlib google-auth-httplib2
+pip install google-api-python-client google-auth-oauthlib google-auth-httplib2 pandas pyarrow
 
 # Install Apache Airflow
 echo "Installing Apache Airflow..."
