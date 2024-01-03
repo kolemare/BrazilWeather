@@ -44,7 +44,7 @@ if [ -d "$VENV_PATH" ]; then
 
     # Run your Python script
     echo "Running your Python script..."
-    python "$SCRIPT_DIR/importDataHadoop.py"
+    python "$SCRIPT_DIR/processData.py"
 
     # Deactivate the virtual environment
     echo "Deactivating the virtual environment..."
