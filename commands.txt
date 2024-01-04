@@ -1,0 +1,5 @@
+sudo docker build -t hadoop-image -f Hadoop.Dockerfile .
+sudo docker system prune -a
+sudo docker images
+sudo docker run -it -p 9000:9000 --name hadoop-container hadoop-image
+hdfs dfs -ls /datalake/southeast
