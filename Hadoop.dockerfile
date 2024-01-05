@@ -28,13 +28,14 @@ COPY startHadoopServices.sh /usr/local/startHadoopServices.sh
 COPY stopHadoopServices.sh /usr/local/stopHadoopServices.sh
 RUN chmod +x /usr/local/configureHadoop.sh /usr/local/startHadoopServices.sh /usr/local/stopHadoopServices.sh
 
+# Execute the Hadoop configuration script
 RUN /usr/local/configureHadoop.sh
 
 # Set work directory
 WORKDIR $HADOOP_HOME
 
-# Open ports for Hadoop services (adjust as necessary)
-EXPOSE 9000
+# Open ports for Hadoop services
+EXPOSE 9000 9870
 
 # Default command
 CMD ["sh", "-c", "service ssh start; bash"]

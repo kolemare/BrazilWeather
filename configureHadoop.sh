@@ -54,10 +54,12 @@ configure_xml() {
 CORE_SITE="$HADOOP_CONF_DIR/core-site.xml"
 HDFS_SITE="$HADOOP_CONF_DIR/hdfs-site.xml"
 
-configure_xml "$CORE_SITE" "fs.defaultFS" "hdfs://localhost:9000"
+configure_xml "$CORE_SITE" "fs.defaultFS" "hdfs://0.0.0.0:9000"
+configure_xml "$HDFS_SITE" "dfs.namenode.http-address" "0.0.0.0:9870"
 configure_xml "$HDFS_SITE" "dfs.replication" "1"
 configure_xml "$HDFS_SITE" "dfs.namenode.name.dir" "$NAMENODE_DIR"
 configure_xml "$HDFS_SITE" "dfs.datanode.data.dir" "$DATANODE_DIR"
+configure_xml "$HDFS_SITE" "dfs.webhdfs.enabled" "true" # Enable WebHDFS
 
 # Format the NameNode (this should be done carefully, only when needed)
 hdfs namenode -format

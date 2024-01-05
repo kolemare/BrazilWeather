@@ -2,12 +2,17 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 import os
-import subprocess
 import tempfile
 import time
+from hdfs import InsecureClient
 
-# Docker container name
-docker_container_name = 'hadoop-container'
+# HDFS configuration
+hdfs_host = 'http://hadoop-container'  # WebHDFS endpoint
+hdfs_port = 9870
+hdfs_user = 'root'
+
+# Create a WebHDFS client
+client = InsecureClient(f"{hdfs_host}:{hdfs_port}", user=hdfs_user)
 
 # Column abbreviations and data types
 columns = ['date', 'hour', 'prcp', 'stp', 'smax', 'smin', 'gbrd', 'temp', 'dewp', 'tmax', 'tmin', 'dmax', 'dmin',
@@ -41,11 +46,6 @@ dtypes = {
     'elvt': float
 }
 
-# Function to run a command inside Docker
-def run_in_docker(command):
-    full_command = f"docker exec {docker_container_name} /bin/bash -c 'echo PATH: $PATH && which hdfs && {command}'"
-    subprocess.run(full_command, shell=True, check=True)
-
 # Function to read CSV and convert to Parquet
 def csv_to_parquet(csv_file, parquet_file):
     df = pd.read_csv(csv_file, names=columns, dtype=dtypes, skiprows=1)
@@ -53,13 +53,10 @@ def csv_to_parquet(csv_file, parquet_file):
     table = pa.Table.from_pandas(df)
     pq.write_table(table, parquet_file)
 
-# Function to upload Parquet file to HDFS without copying to the Docker container
-def upload_to_hdfs(local_path, hdfs_path):
-    hdfs_command = f"hdfs dfs -put - {hdfs_path}"
+# Function to upload Parquet file to HDFS using WebHDFS
+def upload_to_hdfs_webhdfs(local_path, hdfs_path):
     with open(local_path, 'rb') as local_file:
-        full_command = f"docker exec -i {docker_container_name} bash -c '{hdfs_command}'"
-        process = subprocess.Popen(full_command, shell=True, stdin=subprocess.PIPE)
-        process.communicate(input=local_file.read())
+        client.write(hdfs_path, local_file, overwrite=True)
 
 # List of CSV files
 csv_files = ['dataset/central_west.csv',
@@ -80,11 +77,8 @@ with tempfile.TemporaryDirectory() as temp_dir:
 
         # HDFS directory for each data lake
         hdfs_dir = f"/datalake/{os.path.basename(csv_file).split('.')[0]}"
-        run_in_docker(f"hdfs dfs -test -d {hdfs_dir} || hdfs dfs -mkdir -p {hdfs_dir}")
-
-        # Upload Parquet file to HDFS
         hdfs_path = f"{hdfs_dir}/{os.path.basename(csv_file).split('.')[0]}.parquet"
-        upload_to_hdfs(parquet_file, hdfs_path)
+        upload_to_hdfs_webhdfs(parquet_file, hdfs_path)
 
         print(f"Completed processing {csv_file}.")
         time.sleep(1)  # Optional pause between files
