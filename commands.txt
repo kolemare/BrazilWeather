@@ -3,4 +3,5 @@ sudo docker system prune -a
 sudo docker images
 sudo docker network create docker-network
 sudo docker run -it -p 9000:9000 -p 9870:9870 --network docker-network --name hadoop-container hadoop-image
+sudo docker run -it --network docker-network --name loader-hadoop-container loader-hadoop-image
 hdfs dfs -ls /datalake/southeast
