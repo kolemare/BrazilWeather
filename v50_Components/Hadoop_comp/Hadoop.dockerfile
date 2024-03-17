@@ -20,12 +20,12 @@ ENV YARN_NODEMANAGER_USER=root
 RUN apt-get update && apt-get install -y ssh
 
 # Copy Hadoop folder from the host to the container
-COPY hadoop $HADOOP_HOME
+COPY /../v40_Libraries/hadoop $HADOOP_HOME
 
 # Copy configuration and operation scripts and make them executable
-COPY configureHadoop.sh /usr/local/configureHadoop.sh
-COPY startHadoopServices.sh /usr/local/startHadoopServices.sh
-COPY stopHadoopServices.sh /usr/local/stopHadoopServices.sh
+COPY /../v50_Components/Hadoop_comp/configureHadoop.sh /usr/local/configureHadoop.sh
+COPY /../v50_Components/Hadoop_comp/startHadoopServices.sh /usr/local/startHadoopServices.sh
+COPY /../v50_Components/Hadoop_comp/stopHadoopServices.sh /usr/local/stopHadoopServices.sh
 RUN chmod +x /usr/local/configureHadoop.sh /usr/local/startHadoopServices.sh /usr/local/stopHadoopServices.sh
 
 # Execute the Hadoop configuration script

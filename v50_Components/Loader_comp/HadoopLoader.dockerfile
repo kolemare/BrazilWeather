@@ -20,8 +20,8 @@ WORKDIR /usr/src/app
 RUN pip3 install pandas pyarrow hdfs
 
 # Copy the Python script and dataset directory to the container
-COPY importDataHadoop.py ./
-COPY ./dataset/ ./dataset/
+COPY /../v50_Components/Loader_comp/importDataHadoop.py ./
+COPY /../v30_Dataset/ ./dataset/
 
 # Ensure your Python script is executable
 RUN chmod +x importDataHadoop.py

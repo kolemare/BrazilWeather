@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# Get the directory of the script
+SCRIPT_DIR=$(dirname "$(realpath "$BASH_SOURCE")")
+
+# Navigate to the root of the repository
+cd "$SCRIPT_DIR/.."
+
 # Update package list
 echo "Updating package list..."
 sudo apt update -y
@@ -44,7 +50,7 @@ sudo apt-get install -y build-essential libssl-dev libffi-dev python3.10-dev lib
 # Set the name of the virtual environment
 VENV_NAME="venv"
 AIRFLOW_VERSION="2.8.0"
-AIRFLOW_HOME="$(pwd)/airflow"
+AIRFLOW_HOME="$(pwd)/v40_Libraries/airflow"
 
 # Create virtual environment if it doesn't exist
 if [ ! -d "$VENV_NAME" ]; then
@@ -74,8 +80,8 @@ echo "Initializing Apache Airflow..."
 export AIRFLOW_HOME
 airflow db init
 
-# Determine the path to the 'hadoop' directory relative to the script location
-HADOOP_DIR="$(pwd)/hadoop"
+# Determine the path to the 'hadoop' directory
+HADOOP_DIR="$(pwd)/v40_Libraries/hadoop"
 
 # Check if Hadoop is already installed
 if [ ! -d "$HADOOP_DIR" ]; then
@@ -100,8 +106,8 @@ if [ ! -d "$HADOOP_DIR" ]; then
     echo "export PATH=$PATH:$HADOOP_HOME/bin" >> ~/.bashrc
 fi
 
-# Kafka installation directory (in the same folder as the script)
-KAFKA_DIR="$(pwd)/kafka"
+# Kafka installation directory
+KAFKA_DIR="$(pwd)/v40_Libraries/kafka"
 
 # Check if Kafka is already installed
 if [ ! -d "$KAFKA_DIR" ]; then

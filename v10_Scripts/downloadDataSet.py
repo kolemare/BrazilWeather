@@ -7,24 +7,32 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 
+# Get the directory of the script
+SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
+ROOT_DIR = os.path.dirname(SCRIPT_DIR)
+
 # Function to authenticate and create the drive service
 def create_drive_service():
     SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
     creds = None
 
+    # Paths to token and credentials files
+    token_path = os.path.join(ROOT_DIR, 'token.json')
+    credentials_path = os.path.join(ROOT_DIR, 'credentials.json')
+
     # The file token.json stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first time.
-    if os.path.exists('token.json'):
-        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+    if os.path.exists(token_path):
+        creds = Credentials.from_authorized_user_file(token_path, SCOPES)
     # If there are no (valid) credentials available, let the user log in.
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-            flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
+            flow = InstalledAppFlow.from_client_secrets_file(credentials_path, SCOPES)
             creds = flow.run_local_server(port=0)
         # Save the credentials for the next run
-        with open('token.json', 'w') as token:
+        with open(token_path, 'w') as token:
             token.write(creds.to_json())
 
     return build('drive', 'v3', credentials=creds)
@@ -54,8 +62,8 @@ def extract_zip(file_name, extract_to):
 def main():
     service = create_drive_service()
     file_id = '1r5kwpE_3ngzBHBixWLNkbZV8H21XdTkX'
-    file_name = 'archive.zip'
-    dataset_dir = 'dataset'
+    file_name = os.path.join(ROOT_DIR, 'v30_Dataset/archive.zip')
+    dataset_dir = os.path.join(ROOT_DIR, 'v30_Dataset')
 
     # Download the file
     download_file(service, file_id, file_name)
