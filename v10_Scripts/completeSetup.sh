@@ -78,7 +78,6 @@ AIRFLOW_GPL_UNIDECODE=yes pip install apache-airflow==$AIRFLOW_VERSION
 # Initialize Airflow (create default config and database)
 echo "Initializing Apache Airflow..."
 export AIRFLOW_HOME
-airflow db init
 
 # Determine the path to the 'hadoop' directory
 HADOOP_DIR="$(pwd)/v40_Libraries/hadoop"
