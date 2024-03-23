@@ -1,4 +1,3 @@
-
 # Navigate to the script's directory
 cd "$(dirname "$0")/.."
 
@@ -6,10 +5,13 @@ cd "$(dirname "$0")/.."
 yes | docker system prune -a
 
 # Build the Hadoop image
-docker build -t hadoop-image -f ./v50_Components/Hadoop_comp/Hadoop.dockerfile .
+docker build -t hadoop-image -f ./v50_Components/Hadoop_comp/Dockerfile .
 
 # Build the Hadoop Loader image
-docker build -t loader-hadoop-image -f ./v50_Components/Loader_comp/HadoopLoader.dockerfile .
+docker build -t loader-image -f ./v50_Components/Loader_comp/Dockerfile .
+
+# Build the Transformer image
+docker build -t transformer-image -f ./v50_Components/Transformer_comp/Dockerfile .
 
 # List Docker images
 docker images

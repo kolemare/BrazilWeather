@@ -17,17 +17,16 @@ ENV PATH $JAVA_HOME/bin:$PATH
 WORKDIR /usr/src/app
 
 # Install required Python packages
-RUN pip3 install pandas pyarrow hdfs
+RUN pip3 install pandas pyarrow numpy hdfs
 
-# Copy the Python script and dataset directory to the container
-COPY /../v50_Components/Loader_comp/importDataHadoop.py ./
-COPY /../v30_Dataset/ ./dataset/
+# Copy the transformer script to the container
+COPY /../v50_Components/Transformer_comp/transformer.py ./
 
-# Ensure your Python script is executable
-RUN chmod +x importDataHadoop.py
+# Ensure the transformer script is executable
+RUN chmod +x transformer.py
 
-# Default command: Run the Python script
-CMD ["python3", "./importDataHadoop.py"]
+# Default command: Run the transformer script
+CMD ["python3", "./transformer.py"]
 
 # The command to start a Bash shell
 CMD ["/bin/bash"]

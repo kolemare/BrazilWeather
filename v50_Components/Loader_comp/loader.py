@@ -76,7 +76,7 @@ with tempfile.TemporaryDirectory() as temp_dir:
         csv_to_parquet(csv_file, parquet_file)
 
         # HDFS directory for each data lake
-        hdfs_dir = f"/datalake/{os.path.basename(csv_file).split('.')[0]}"
+        hdfs_dir = f"/datalake/transformed"
         hdfs_path = f"{hdfs_dir}/{os.path.basename(csv_file).split('.')[0]}.parquet"
         upload_to_hdfs_webhdfs(parquet_file, hdfs_path)
 
