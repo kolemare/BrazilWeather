@@ -17,17 +17,16 @@ ENV PATH $JAVA_HOME/bin:$PATH
 WORKDIR /usr/src/app
 
 # Install required Python packages
-RUN pip3 install pandas pyarrow hdfs
+RUN pip3 install pandas pyarrow hdfs paho-mqtt==1.6.1
 
-# Copy the Python script and dataset directory to the container
+# Copy the Python scripts and dataset directory to the container
 COPY /../v50_Components/Loader_comp/loader.py ./
+COPY /../v50_Components/Loader_comp/comm.py ./
 COPY /../v30_Dataset/ ./dataset/
 
-# Ensure your Python script is executable
+# Ensure your Python scripts are executable
 RUN chmod +x loader.py
+RUN chmod +x comm.py
 
-# Default command: Run the Python script
+# Default command: Run the loader script
 CMD ["python3", "./loader.py"]
-
-# The command to start a Bash shell
-CMD ["/bin/bash"]

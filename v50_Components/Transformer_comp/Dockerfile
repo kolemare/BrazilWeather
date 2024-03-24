@@ -17,7 +17,7 @@ ENV PATH $JAVA_HOME/bin:$PATH
 WORKDIR /usr/src/app
 
 # Install required Python packages
-RUN pip3 install pandas pyarrow numpy hdfs
+RUN pip3 install pandas pyarrow numpy hdfs paho-mqtt==1.6.1
 
 # Copy the transformer script to the container
 COPY /../v50_Components/Transformer_comp/transformer.py ./
