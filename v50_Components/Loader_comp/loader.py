@@ -5,42 +5,23 @@ import os
 import tempfile
 from hdfs import InsecureClient
 from comm import Comm
-
+import time
 
 class Loader:
     def __init__(self, hdfs_host, hdfs_port, hdfs_user):
         self.hdfs_client = InsecureClient(f"{hdfs_host}:{hdfs_port}", user=hdfs_user)
-        self.columns = ['date', 'hour', 'prcp', 'stp', 'smax', 'smin', 'gbrd',
-                        'temp', 'dewp', 'tmax', 'tmin', 'dmax', 'dmin',
-                        'hmax', 'hmin', 'hmdy', 'wdct', 'gust', 'wdsp', 'regi',
-                        'prov', 'wsnm', 'inme', 'lat', 'lon', 'elvt']
+        self.columns = [
+            'date', 'hour', 'prcp', 'stp', 'smax', 'smin', 'gbrd',
+            'temp', 'dewp', 'tmax', 'tmin', 'dmax', 'dmin',
+            'hmax', 'hmin', 'hmdy', 'wdct', 'gust', 'wdsp', 'regi',
+            'prov', 'wsnm', 'inme', 'lat', 'lon', 'elvt'
+        ]
         self.dtypes = {
-            'date': str,
-            'hour': str,
-            'prcp': float,
-            'stp': float,
-            'smax': float,
-            'smin': float,
-            'gbrd': float,
-            'temp': float,
-            'dewp': float,
-            'tmax': float,
-            'tmin': float,
-            'dmax': float,
-            'dmin': float,
-            'hmax': float,
-            'hmin': float,
-            'hmdy': float,
-            'wdct': float,
-            'gust': float,
-            'wdsp': float,
-            'regi': str,
-            'prov': str,
-            'wsnm': str,
-            'inme': str,
-            'lat': float,
-            'lon': float,
-            'elvt': float
+            'date': str, 'hour': str, 'prcp': float, 'stp': float, 'smax': float,
+            'smin': float, 'gbrd': float, 'temp': float, 'dewp': float, 'tmax': float,
+            'tmin': float, 'dmax': float, 'dmin': float, 'hmax': float, 'hmin': float,
+            'hmdy': float, 'wdct': float, 'gust': float, 'wdsp': float, 'regi': str,
+            'prov': str, 'wsnm': str, 'inme': str, 'lat': float, 'lon': float, 'elvt': float
         }
 
     def process_load_request(self, item):
@@ -51,8 +32,8 @@ class Loader:
                 self.csv_to_parquet(csv_file, parquet_file)
                 hdfs_path = f"/datalake/transformed/{item}.parquet"
                 self.upload_to_hdfs_webhdfs(parquet_file, hdfs_path)
-                return f"load:{item}:success"
-        return f"load:{item}:failure"
+                return "success"
+        return "failure"
 
     def csv_to_parquet(self, csv_file, parquet_file):
         df = pd.read_csv(csv_file, names=self.columns, dtype=self.dtypes, skiprows=1)
@@ -65,22 +46,31 @@ class Loader:
             self.hdfs_client.write(hdfs_path, local_file, overwrite=True)
 
     def handle_request(self, payload):
-        if payload.startswith("load:"):
-            item = payload.split(":")[1]
-            return self.process_load_request(item)
-        elif payload == "shutdown":
-            return "shutdown"
-
+        parts = payload.split(":")
+        if len(parts) != 3:
+            print("Invalid message format received.")
+            return "command:invalid"
+        request_id, command, item = parts
+        if command == "load":
+            result = self.process_load_request(item)
+            return f"{request_id}:{command}:{item}:{result}"
+        elif command == "shutdown":
+            # Implement shutdown logic here if needed
+            # For now, just return an acknowledged message
+            return f"{request_id}:{command}:acknowledged"
+        else:
+            print(f"Unknown command: {command}")
+            return f"{request_id}:{command}:error"
 
 def main():
     loader = Loader('http://hadoop-container', 9870, 'root')
-    comm = Comm("mqtt-broker", "loader", "responses")
+    comm = Comm("mqtt-broker", "loader", "response")
 
     comm.start(loader.handle_request)
 
     # Keep the script running until shutdown request is received
     while True:
-        # Add any additional logic here
+        time.sleep(5)
         pass
 
 

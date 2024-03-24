@@ -1,5 +1,6 @@
 from comm import Comm
 import subprocess
+import time
 
 def handle_request(payload):
     request_id, message = payload.split(':', 1)
@@ -28,6 +29,7 @@ def main():
 
     # Keep the script running
     while True:
+        time.sleep(5)
         pass
 
 if __name__ == "__main__":

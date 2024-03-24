@@ -6,6 +6,7 @@
         "south",
         "southeast"
     ],
-    "max_wait_time": 30,
-    "hadoop_boot": 80
+    "max_wait_time": 300,
+    "hadoop_boot": 60,
+    "port": 1883
 }

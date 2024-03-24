@@ -1,51 +1,70 @@
+import time
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 import os
 import numpy as np
 from hdfs import InsecureClient
+from comm import Comm
 
-# HDFS configuration
-hdfs_host = 'http://hadoop-container'  # WebHDFS endpoint
-hdfs_port = 9870
-hdfs_user = 'root'
 
-# Create a WebHDFS client
-client = InsecureClient(f"{hdfs_host}:{hdfs_port}", user=hdfs_user)
+class Transformer:
+    def __init__(self, hdfs_host, hdfs_port, hdfs_user):
+        self.hdfs_client = InsecureClient(f"{hdfs_host}:{hdfs_port}", user=hdfs_user)
 
-def read_parquet_from_hdfs(client, hdfs_path):
-    with client.read(hdfs_path) as reader:
-        data = reader.read()
-        return pq.read_table(pa.BufferReader(data)).to_pandas()
+    def read_parquet_from_hdfs(self, hdfs_path):
+        with self.hdfs_client.read(hdfs_path) as reader:
+            data = reader.read()
+            return pq.read_table(pa.BufferReader(data)).to_pandas()
 
-def clean_data(df):
-    for column in df.columns:
-        # Replace -9999 with NaN and remove them from calculation
-        df[column].replace(-9999, np.nan, inplace=True)
-    df.dropna(inplace=True)
-    return df
+    @staticmethod
+    def clean_data(df):
+        for column in df.columns:
+            df[column].replace(-9999, np.nan, inplace=True)
+        df.dropna(inplace=True)
+        return df
 
-def write_parquet_to_hdfs(client, df, hdfs_path):
-    buffer = pa.BufferOutputStream()
-    pq.write_table(pa.Table.from_pandas(df), buffer)
-    with client.write(hdfs_path, overwrite=True) as writer:
-        writer.write(buffer.getvalue())
+    def write_parquet_to_hdfs(self, df, hdfs_path):
+        buffer = pa.BufferOutputStream()
+        pq.write_table(pa.Table.from_pandas(df), buffer)
+        with self.hdfs_client.write(hdfs_path, overwrite=True) as writer:
+            writer.write(buffer.getvalue())
 
-# Paths to your Parquet files in HDFS
-hdfs_paths = [
-    '/datalake/transformed/central_west.parquet',
-    '/datalake/transformed/north.parquet',
-    '/datalake/transformed/northeast.parquet',
-    '/datalake/transformed/south.parquet',
-    '/datalake/transformed/southeast.parquet'
-]
+    def handle_request(self, payload):
+        parts = payload.split(":")
+        if len(parts) != 3:
+            print("Invalid message format received.")
+            return "command:invalid"
+        request_id, command, region = parts
+        if command == "transform":
+            try:
+                path = f'/datalake/transformed/{region}.parquet'
+                print(f"Cleaning data for {region}...")
+                df = self.read_parquet_from_hdfs(path)
+                cleaned_df = self.clean_data(df)
+                output_path = f'/datalake/curated/{region}.parquet'
+                self.write_parquet_to_hdfs(cleaned_df, output_path)
+                print(f"Cleaned data for {region} uploaded to HDFS at {output_path}")
+                return f"{request_id}:{command}:success"
+            except Exception as e:
+                print(f"Error transforming data for {region}: {e}")
+                return f"{request_id}:{command}:failure"
+        else:
+            print(f"Unknown command: {command}")
+            return f"{request_id}:{command}:error"
 
-for path in hdfs_paths:
-    region = os.path.basename(path).split('.')[0]
-    print(f"Cleaning data for {region}...")
-    df = read_parquet_from_hdfs(client, path)
-    cleaned_df = clean_data(df)
-    # Define the output path in the 'datalake/curated' directory
-    output_path = f'/datalake/curated/{region}.parquet'
-    write_parquet_to_hdfs(client, cleaned_df, output_path)
-    print(f"Cleaned data for {region} uploaded to HDFS at {output_path}")
+
+def main():
+    transformer = Transformer('http://hadoop-container', 9870, 'root')
+    comm = Comm("mqtt-broker", "transformer", "response")
+
+    comm.start(transformer.handle_request)
+
+    # Keep the script running until a shutdown request is received
+    while True:
+        time.sleep(5)
+        pass
+
+
+if __name__ == "__main__":
+    main()
