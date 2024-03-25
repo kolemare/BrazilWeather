@@ -6,6 +6,8 @@ import tempfile
 from hdfs import InsecureClient
 from comm import Comm
 import time
+import threading
+
 
 class Loader:
     def __init__(self, hdfs_host, hdfs_port, hdfs_user):
@@ -23,16 +25,20 @@ class Loader:
             'hmdy': float, 'wdct': float, 'gust': float, 'wdsp': float, 'regi': str,
             'prov': str, 'wsnm': str, 'inme': str, 'lat': float, 'lon': float, 'elvt': float
         }
+        self.shutdown_event = threading.Event()
 
-    def process_load_request(self, item):
+    def process_load_request(self, item, comm):
         csv_file = f'dataset/{item}.csv'
         if os.path.exists(csv_file):
             with tempfile.TemporaryDirectory() as temp_dir:
                 parquet_file = os.path.join(temp_dir, f"{item}.parquet")
+                comm.send_info(f"Wrapping {item} to parquet format...")
                 self.csv_to_parquet(csv_file, parquet_file)
                 hdfs_path = f"/datalake/transformed/{item}.parquet"
+                comm.send_info(f"Uploading {item} to HDFS...")
                 self.upload_to_hdfs_webhdfs(parquet_file, hdfs_path)
                 return "success"
+        comm.send_info(f"Uploading of {item} to HDFS failed.")
         return "failure"
 
     def csv_to_parquet(self, csv_file, parquet_file):
@@ -45,33 +51,32 @@ class Loader:
         with open(local_path, 'rb') as local_file:
             self.hdfs_client.write(hdfs_path, local_file, overwrite=True)
 
-    def handle_request(self, payload):
+    def handle_request(self, payload, comm):
         parts = payload.split(":")
         if len(parts) != 3:
-            print("Invalid message format received.")
+            comm.send_info("Invalid message format received.")
             return "command:invalid"
         request_id, command, item = parts
         if command == "load":
-            result = self.process_load_request(item)
+            result = self.process_load_request(item, comm)
             return f"{request_id}:{command}:{item}:{result}"
         elif command == "shutdown":
-            # Implement shutdown logic here if needed
-            # For now, just return an acknowledged message
-            return f"{request_id}:{command}:acknowledged"
+            self.shutdown_event.set()
+            return f"{request_id}:loader:{command}:acknowledged"
         else:
-            print(f"Unknown command: {command}")
-            return f"{request_id}:{command}:error"
+            comm.send_info(f"Unknown command: {command}")
+            return f"{request_id}:{command}:{item}:error"
+
 
 def main():
     loader = Loader('http://hadoop-container', 9870, 'root')
     comm = Comm("mqtt-broker", "loader", "response")
 
     comm.start(loader.handle_request)
-
-    # Keep the script running until shutdown request is received
-    while True:
-        time.sleep(5)
-        pass
+    loader.shutdown_event.wait()
+    comm.send_info("Shutting down communication...")
+    comm.send_info("Shutting down...")
+    comm.stop()
 
 
 if __name__ == "__main__":

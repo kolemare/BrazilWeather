@@ -14,9 +14,12 @@ class Comm:
         print(f"HDFS: Received request: {payload}")
 
         if self.callback:
-            response = self.callback(payload)
+            response = self.callback(payload, self)
             if response is not None:
                 self.client.publish(self.response_topic, response)
+
+    def send_info(self, message):
+        self.client.publish("info", "HDFS: " + str(message))
 
     def start(self, callback):
         self.callback = callback

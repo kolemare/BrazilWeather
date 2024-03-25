@@ -2,7 +2,8 @@ from comm import Comm
 import subprocess
 import time
 
-def handle_request(payload):
+
+def handle_request(payload, comm):
     request_id, message = payload.split(':', 1)
     if message == "hdfs:start":
         subprocess.run(["/usr/local/startHadoopServices.sh"])
@@ -10,8 +11,10 @@ def handle_request(payload):
         namenode_status = subprocess.run(["jps"], capture_output=True, text=True).stdout.find("NameNode") != -1
         datanode_status = subprocess.run(["jps"], capture_output=True, text=True).stdout.find("DataNode") != -1
         if namenode_status and datanode_status:
+            comm.send_info("HDFS service running...")
             return f"{request_id}:hdfs:start:success"
         else:
+            comm.send_info("HDFS service starting failure...")
             return f"{request_id}:hdfs:start:failure"
     elif message == "hdfs:stop":
         subprocess.run(["/usr/local/stopHadoopServices.sh"])
@@ -19,9 +22,12 @@ def handle_request(payload):
         namenode_status = subprocess.run(["jps"], capture_output=True, text=True).stdout.find("NameNode") == -1
         datanode_status = subprocess.run(["jps"], capture_output=True, text=True).stdout.find("DataNode") == -1
         if namenode_status and datanode_status:
+            comm.send_info("HDFS service stopped.")
             return f"{request_id}:hdfs:stop:success"
         else:
+            comm.send_info("HDFS service stopping failure...")
             return f"{request_id}:hdfs:stop:failure"
+
 
 def main():
     comm = Comm("mqtt-broker", "hdfs", "response")
@@ -31,6 +37,7 @@ def main():
     while True:
         time.sleep(5)
         pass
+
 
 if __name__ == "__main__":
     main()

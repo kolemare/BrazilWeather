@@ -21,12 +21,10 @@ RUN pip3 install pandas pyarrow numpy hdfs paho-mqtt==1.6.1
 
 # Copy the transformer script to the container
 COPY /../v50_Components/Transformer_comp/transformer.py ./
+COPY /../v50_Components/Transformer_comp/comm.py ./
 
 # Ensure the transformer script is executable
 RUN chmod +x transformer.py
 
 # Default command: Run the transformer script
 CMD ["python3", "./transformer.py"]
-
-# The command to start a Bash shell
-CMD ["/bin/bash"]

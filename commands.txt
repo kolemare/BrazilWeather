@@ -2,9 +2,11 @@ sudo docker build -t hadoop-image -f Hadoop.Dockerfile .
 sudo docker system prune -a
 sudo docker images
 sudo docker network create docker-network
-sudo docker run -d --name mqtt-broker --network docker-network -p 1883:1883 eclipse-mosquitto
-sudo docker run -it -p 9000:9000 -p 9870:9870 --network docker-network --name hadoop-container hadoop-image
-sudo docker run -it --network docker-network --name loader-container loader-image
-sudo docker run -it --network docker-network --name transformer-container transformer-image
+sudo docker run -d -p 1883:1883 --network docker-network --name mqtt-broker mosquitto-image
+sudo docker run -d -p 9000:9000 -p 9870:9870 --network docker-network --name hadoop-container hadoop-image
+sudo docker run -d --network docker-network --name loader-container loader-image
+sudo docker run -d --network docker-network --name transformer-container transformer-image
 sudo docker run -it --network docker-network --name marshaller-container marshaller-image
-hdfs dfs -ls /datalake/southeast
+hdfs dfs -ls /datalake/
+hdfs dfs -ls /datalake/transformed/
+hdfs dfs -ls /datalake/curated/
