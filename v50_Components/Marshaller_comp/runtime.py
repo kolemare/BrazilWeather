@@ -1,9 +1,16 @@
 import json
-import queue
 import threading
+from collections import deque
 
 
-class Config:
+class Task:
+    def __init__(self, region, operation, period):
+        self.region = region
+        self.operation = operation
+        self.period = period
+
+
+class Runtime:
     def __init__(self, config_file='configuration.json'):
         self.lock = threading.Lock()
 
@@ -16,18 +23,20 @@ class Config:
         self._hadoop_boot = json_config['hadoop_boot']
         self._port = json_config['port']
         self.batch_tasks = json_config['batch_tasks']
+        self.shutdown_components = json_config['shutdown_components']
 
         # Global variables
         self._hadoop_status = False
         self._system_shutdown = False
-        self._queue = queue.Queue()
+        self._queue = deque()
         self._response_events = {}
         self._transformer_task = []
         self._processor_region = []
+        self._processed_tasks = []
         self._transformed = 0
 
         for task in self.batch_tasks:
-            self._queue.put(task)
+            self._queue.append(Task(task.get('region'), task.get('operation'), int(task.get('period'))))
 
     @property
     def data(self):
@@ -110,6 +119,16 @@ class Config:
             self._transformer_task = value
 
     @property
+    def processed_tasks(self):
+        with self.lock:
+            return self._processed_tasks
+
+    @processed_tasks.setter
+    def processed_tasks(self, value):
+        with self.lock:
+            self._processed_tasks = value
+
+    @property
     def processor_region(self):
         with self.lock:
             return self._processor_region
@@ -138,25 +157,35 @@ class Config:
         with self.lock:
             return self._queue
 
-    def put_task(self, task):
+    def put_task(self, task, priority=False):
         with self.lock:
-            self._queue.put(task)
+            if priority:
+                self._queue.appendleft(task)
+            else:
+                self._queue.append(task)
 
     def get_task(self):
         with self.lock:
-            if not self._queue.empty():
-                return self._queue.get()
+            if self._queue:
+                return self._queue.popleft()
             else:
                 return None
 
-    def requeue_task(self, task):
+    def prioritize_task(self, task):
         with self.lock:
-            self._queue.put(task)
+            for idx, queued_task in enumerate(self._queue):
+                if (queued_task.region == task.region and
+                        queued_task.operation == task.operation and
+                        queued_task.period == task.period):
+                    # Remove the task from its current position
+                    del self._queue[idx]
+                    # Add the task to the front of the queue
+                    self._queue.appendleft(task)
+                    return True
+            # If the task is not found, add it to the front of the queue
+            self._queue.appendleft(task)
+            return False
 
-    def task_done(self):
-        with self.lock:
-            self._queue.task_done()
 
-
-# Create a singleton instance of the Config class
-config = Config()
+# Create a singleton instance of the Runtime class
+runtime = Runtime()

@@ -2,21 +2,21 @@ import paho.mqtt.client as mqtt
 import threading
 import time
 import uuid
-from configuration import config
+from runtime import runtime, Task
 
 
 def send_request_and_wait(client, request_topic, request_message, timeout=10):
     request_id = str(uuid.uuid4())
     event = threading.Event()
-    config.response_events[request_id] = {'event': event, 'response': None}
+    runtime.response_events[request_id] = {'event': event, 'response': None}
 
     client.publish(request_topic, f"{request_id}:{request_message}")
     write_output(f"Marshaller: Sent request to {request_topic}: {request_message}")
 
     event.wait(timeout)
 
-    response = config.response_events[request_id]['response']
-    del config.response_events[request_id]
+    response = runtime.response_events[request_id]['response']
+    del runtime.response_events[request_id]
 
     return response
 
@@ -28,9 +28,12 @@ def on_message(client, userdata, message):
         request_id, response_message = payload.split(':', 1)
         write_output(f"Marshaller: Received response on topic {topic}: {response_message}")
 
-        if request_id in config.response_events:
-            config.response_events[request_id]['response'] = response_message
-            config.response_events[request_id]['event'].set()
+        if request_id in runtime.response_events:
+            runtime.response_events[request_id]['response'] = response_message
+            runtime.response_events[request_id]['event'].set()
+
+    elif "marshaller" == topic:
+        handle_ui(client, payload)
 
     elif "info" == topic:
         write_output(payload)
@@ -40,10 +43,10 @@ def on_message(client, userdata, message):
 
 
 def start_hdfs(client):
-    while not config.hadoop_status:
-        response = send_request_and_wait(client, "hdfs", "hdfs:start", config.hadoop_boot)
+    while not runtime.hadoop_status:
+        response = send_request_and_wait(client, "hdfs", "hdfs:start", runtime.hadoop_boot)
         if response == "hdfs:start:success":
-            config.hadoop_status = True
+            runtime.hadoop_status = True
             write_output("Marshaller: Successfully started HDFS!")
         elif response == "hdfs:start:failure":
             write_output("Marshaller: Trying to start HDFS again!")
@@ -52,16 +55,16 @@ def start_hdfs(client):
 
 
 def handle_loader(client):
-    for item in config.data:
+    for item in runtime.data:
         while True:
             time.sleep(5)
-            if not config.hadoop_status:
+            if not runtime.hadoop_status:
                 continue
-            response = send_request_and_wait(client, "loader", f"load:{item}", config.time_threshold)
+            response = send_request_and_wait(client, "loader", f"load:{item}", runtime.time_threshold)
             if response is not None:
                 if response == f"load:{item}:success":
                     write_output(f"Marshaller: Success for loading: {item}")
-                    config.transformer_task.append(item)
+                    runtime.transformer_task.append(item)
                     break
                 elif response == f"load:{item}:failure":
                     write_output(f"Marshaller: Failed Re-requesting loading of: {item}")
@@ -78,20 +81,20 @@ def handle_transformer(client):
 
         time.sleep(5)
 
-        if config.transformed == len(config.data):
+        if runtime.transformed == len(runtime.data):
             return shut_down_component(client, "transformer")
 
-        if not config.hadoop_status:
+        if not runtime.hadoop_status:
             continue
 
-        for item in config.transformer_task:
-            response = send_request_and_wait(client, "transformer", f"transform:{item}", config.time_threshold)
+        for item in runtime.transformer_task:
+            response = send_request_and_wait(client, "transformer", f"transform:{item}", runtime.time_threshold)
             if response is not None:
                 if response == f"transform:{item}:success":
                     write_output(f"Marshaller: Success for transforming: {item}")
-                    config.transformer_task.remove(item)
-                    config.processor_region.append(item)
-                    config.transformed += 1
+                    runtime.transformer_task.remove(item)
+                    runtime.processor_region.append(item)
+                    runtime.transformed += 1
                     break
                 elif response == f"transform:{item}:failure":
                     write_output(f"Marshaller: Failed Re-requesting transforming of: {item}")
@@ -103,50 +106,63 @@ def handle_transformer(client):
 
 
 def handle_processor(client):
-    while not config.system_shutdown:
+    while not runtime.system_shutdown:
         time.sleep(5)
-        if not config.hadoop_status:
+        if not runtime.hadoop_status:
             continue
 
-        task = config.get_task()
+        task = runtime.get_task()
 
         if task is None:
             continue
 
-        # Extract task details
-        operation = task.get('operation')
-        region = task.get('region')
-        period = int(task.get('period'))
-
         # Check if the region is available (already transformed in curated zone)
-        if not config.is_region_available(region):
-            # Re-queue the task and continue with the next iteration
-            config.requeue_task(task)
-            write_output(f"Marshaller: Region {region} is not available for processing, re-queueing task.")
+        if not runtime.is_region_available(task.region):
+            # Re-queue the task with low priority
+            runtime.put_task(task, priority=False)
+            write_output(f"Marshaller: Region {task.region} is not available for processing, re-queueing task.")
             continue
 
-        response = send_request_and_wait(client, "processor", f"{operation}:{region}:{period}", config.time_threshold)
+        response = send_request_and_wait(client, "processor", f"{task.operation}:{task.region}:{task.period}",
+                                         runtime.time_threshold)
         if response is not None:
-            if response == f"{operation}:{region}:{period}:success":
-                write_output(f"Marshaller: Success for calculating {operation} for {region}")
-            elif response == f"{operation}:{region}:{period}:failure":
-                write_output(f"Marshaller: Failed Re-requesting calculation of {operation} for {region}")
+            if response == f"{task.operation}:{task.region}:{task.period}:success":
+                write_output(f"Marshaller: Success for calculating {task.operation} for {task.region}")
+                runtime.processed_tasks.append(
+                    {'region': task.region, 'operation': task.operation, 'period': task.period})
+            elif response == f"{task.operation}:{task.region}:{task.period}:failure":
+                write_output(f"Marshaller: Failed Re-requesting calculation of {task.operation} for {task.region}")
             else:
                 write_output(f"Marshaller: Unknown error (processor)")
         else:
             write_output("Marshaller: Timeout for processor request.")
             raise Exception("Timeout for processor request")
-
-        # Mark the task as done
-        config.task_done()
     return shut_down_component(client, "processor")
+
+
+def handle_ui(client, payload):
+    parts = payload.split(":")
+    if len(parts) != 3:
+        client.publish("ui", "invalid")
+    region, command, period = parts
+    if command == "shutdown":
+        runtime.system_shutdown = True
+        for item in runtime.shutdown_components:
+            shut_down_component(client, item)
+        client.publish("ui", "Shutting down...")
+    else:
+        if runtime.prioritize_task(Task(region, command, period)):
+            client.publish("ui", "Task exists, adding priority.")
+        else:
+            client.publish("ui", "Created task for calculation")
 
 
 def shut_down_component(client, component):
     while True:
-        response = send_request_and_wait(client, component, f"shutdown:{None}", config.time_threshold)
+        response = send_request_and_wait(client, component, f"shutdown:{None}", runtime.time_threshold)
         if response is not None:
             if response == f"{component}:shutdown:acknowledged":
+                client.publish("ui", f"Shutting down {component}...")
                 return
             else:
                 write_output(f"Marshaller: Re-requesting shutdown of {component}.")
@@ -177,10 +193,11 @@ def write_output(message):
 
 
 def main():
-    port = config.port
+    port = runtime.port
     client = mqtt.Client("marshaller")
     client.on_message = lambda client, userdata, message: on_message(client, userdata, message)
     client.connect("mqtt-broker", port)
+    client.subscribe("marshaller")
     client.subscribe("response")
     client.subscribe("info")
     client.loop_start()

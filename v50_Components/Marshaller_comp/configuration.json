@@ -1,4 +1,10 @@
 {
+    "shutdown_components": [
+        "loader",
+        "transformer",
+        "processor",
+        "hdfs"
+    ],
     "data": [
         "central_west",
         "north",

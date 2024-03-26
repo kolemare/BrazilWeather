@@ -45,7 +45,7 @@ sudo apt install -y python3.10-venv
 
 # Install build-essential and other dependencies for Python packages
 echo "Installing build dependencies..."
-sudo apt-get install -y build-essential libssl-dev libffi-dev python3.10-dev libyaml-dev
+sudo apt-get install -y build-essential libssl-dev libffi-dev python3.10-dev libyaml-dev python3-tk
 
 # Set the name of the virtual environment
 VENV_NAME="venv"
