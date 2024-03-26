@@ -1,4 +1,5 @@
 import json
+import queue
 import threading
 
 
@@ -14,12 +15,19 @@ class Config:
         self._time_threshold = json_config['max_wait_time']
         self._hadoop_boot = json_config['hadoop_boot']
         self._port = json_config['port']
+        self.batch_tasks = json_config['batch_tasks']
 
         # Global variables
         self._hadoop_status = False
+        self._system_shutdown = False
+        self._queue = queue.Queue()
         self._response_events = {}
         self._transformer_task = []
+        self._processor_region = []
         self._transformed = 0
+
+        for task in self.batch_tasks:
+            self._queue.put(task)
 
     @property
     def data(self):
@@ -72,6 +80,16 @@ class Config:
             self._hadoop_status = value
 
     @property
+    def system_shutdown(self):
+        with self.lock:
+            return self._system_shutdown
+
+    @system_shutdown.setter
+    def system_shutdown(self, value):
+        with self.lock:
+            self._system_shutdown = value
+
+    @property
     def response_events(self):
         with self.lock:
             return self._response_events
@@ -92,6 +110,20 @@ class Config:
             self._transformer_task = value
 
     @property
+    def processor_region(self):
+        with self.lock:
+            return self._processor_region
+
+    @processor_region.setter
+    def processor_region(self, value):
+        with self.lock:
+            self._processor_region = value
+
+    def is_region_available(self, region):
+        with self.lock:
+            return region in self._processor_region
+
+    @property
     def transformed(self):
         with self.lock:
             return self._transformed
@@ -100,6 +132,30 @@ class Config:
     def transformed(self, value):
         with self.lock:
             self._transformed = value
+
+    @property
+    def queue(self):
+        with self.lock:
+            return self._queue
+
+    def put_task(self, task):
+        with self.lock:
+            self._queue.put(task)
+
+    def get_task(self):
+        with self.lock:
+            if not self._queue.empty():
+                return self._queue.get()
+            else:
+                return None
+
+    def requeue_task(self, task):
+        with self.lock:
+            self._queue.put(task)
+
+    def task_done(self):
+        with self.lock:
+            self._queue.task_done()
 
 
 # Create a singleton instance of the Config class

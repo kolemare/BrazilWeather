@@ -1,5 +1,14 @@
 #!/bin/bash
 
+# Stop all running Docker containers
+docker stop $(docker ps -aq)
+
+# Remove all Docker containers
+docker rm $(docker ps -aq)
+
+# Remove all Docker networks
+docker network prune -f
+
 # Create the Docker network
 docker network create docker-network
 
@@ -14,6 +23,9 @@ docker run -d --network docker-network --name loader-container loader-image
 
 # Start the Transformer container
 docker run -d --network docker-network --name transformer-container transformer-image
+
+# Start the Processor container
+docker run -d --network docker-network --name processor-container processor-image
 
 # Start the Marshaller container
 docker run -it --network docker-network --name marshaller-container marshaller-image

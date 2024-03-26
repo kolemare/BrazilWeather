@@ -6,6 +6,23 @@
         "south",
         "southeast"
     ],
+    "batch_tasks": [
+        {
+            "operation": "avg_temp",
+            "region": "central_west",
+            "period": "4"
+        },
+        {
+            "operation": "total_rainfall",
+            "region": "central_west",
+            "period": "3"
+        },
+        {
+            "operation": "pressure_extremes",
+            "region": "central_west",
+            "period": "5"
+        }
+    ],
     "max_wait_time": 300,
     "hadoop_boot": 60,
     "port": 1883

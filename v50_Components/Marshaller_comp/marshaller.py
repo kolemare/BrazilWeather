@@ -70,16 +70,7 @@ def handle_loader(client):
             else:
                 write_output("Marshaller: Timeout for load request.")
                 raise Exception("Timeout for load request")
-    while True:
-        response = send_request_and_wait(client, "loader", f"shutdown:{None}", config.time_threshold)
-        if response is not None:
-            if response == "loader:shutdown:acknowledged":
-                return
-            else:
-                write_output(f"Marshaller: Re-requesting shutdown of loader.")
-        else:
-            write_output("Marshaller: Timeout for shutting down loader.")
-            raise Exception("Timeout for shutting down loader.")
+    return shut_down_component(client, "loader")
 
 
 def handle_transformer(client):
@@ -87,16 +78,8 @@ def handle_transformer(client):
 
         time.sleep(5)
 
-        while config.transformed == len(config.data):
-            response = send_request_and_wait(client, "transformer", f"shutdown:{None}", config.time_threshold)
-            if response is not None:
-                if response == "transformer:shutdown:acknowledged":
-                    return
-                else:
-                    write_output(f"Marshaller: Re-requesting shutdown of transformer.")
-            else:
-                write_output("Marshaller: Timeout for shutting down transformer.")
-                raise Exception("Timeout for shutting down transformer.")
+        if config.transformed == len(config.data):
+            return shut_down_component(client, "transformer")
 
         if not config.hadoop_status:
             continue
@@ -107,6 +90,7 @@ def handle_transformer(client):
                 if response == f"transform:{item}:success":
                     write_output(f"Marshaller: Success for transforming: {item}")
                     config.transformer_task.remove(item)
+                    config.processor_region.append(item)
                     config.transformed += 1
                     break
                 elif response == f"transform:{item}:failure":
@@ -116,6 +100,59 @@ def handle_transformer(client):
             else:
                 write_output("Marshaller: Timeout for transform request.")
                 raise Exception("Timeout for transform request")
+
+
+def handle_processor(client):
+    while not config.system_shutdown:
+        time.sleep(5)
+        if not config.hadoop_status:
+            continue
+
+        task = config.get_task()
+
+        if task is None:
+            continue
+
+        # Extract task details
+        operation = task.get('operation')
+        region = task.get('region')
+        period = int(task.get('period'))
+
+        # Check if the region is available (already transformed in curated zone)
+        if not config.is_region_available(region):
+            # Re-queue the task and continue with the next iteration
+            config.requeue_task(task)
+            write_output(f"Marshaller: Region {region} is not available for processing, re-queueing task.")
+            continue
+
+        response = send_request_and_wait(client, "processor", f"{operation}:{region}:{period}", config.time_threshold)
+        if response is not None:
+            if response == f"{operation}:{region}:{period}:success":
+                write_output(f"Marshaller: Success for calculating {operation} for {region}")
+            elif response == f"{operation}:{region}:{period}:failure":
+                write_output(f"Marshaller: Failed Re-requesting calculation of {operation} for {region}")
+            else:
+                write_output(f"Marshaller: Unknown error (processor)")
+        else:
+            write_output("Marshaller: Timeout for processor request.")
+            raise Exception("Timeout for processor request")
+
+        # Mark the task as done
+        config.task_done()
+    return shut_down_component(client, "processor")
+
+
+def shut_down_component(client, component):
+    while True:
+        response = send_request_and_wait(client, component, f"shutdown:{None}", config.time_threshold)
+        if response is not None:
+            if response == f"{component}:shutdown:acknowledged":
+                return
+            else:
+                write_output(f"Marshaller: Re-requesting shutdown of {component}.")
+        else:
+            write_output(f"Marshaller: Timeout for shutting down {component}.")
+            raise Exception(f"Timeout for shutting down {component}.")
 
 
 def write_output(message):
@@ -150,14 +187,17 @@ def main():
 
     start_hdfs_thread = threading.Thread(target=start_hdfs, args=(client,))
     transformer_thread = threading.Thread(target=handle_transformer, args=(client,))
+    processor_thread = threading.Thread(target=handle_processor, args=(client,))
     loader_thread = threading.Thread(target=handle_loader, args=(client,))
 
     start_hdfs_thread.start()
     transformer_thread.start()
+    processor_thread.start()
     loader_thread.start()
 
     start_hdfs_thread.join()
     transformer_thread.join()
+    processor_thread.join()
     loader_thread.join()
 
     client.loop_stop()
