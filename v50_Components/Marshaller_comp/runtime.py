@@ -33,6 +33,7 @@ class Runtime:
         self._transformer_task = []
         self._processor_region = []
         self._processed_tasks = []
+        self._ui_requests = []
         self._transformed = 0
 
         for task in self.batch_tasks:
@@ -129,6 +130,16 @@ class Runtime:
             self._processed_tasks = value
 
     @property
+    def ui_requests(self):
+        with self.lock:
+            return self._ui_requests
+
+    @ui_requests.setter
+    def ui_requests(self, value):
+        with self.lock:
+            self.ui_requests = value
+
+    @property
     def processor_region(self):
         with self.lock:
             return self._processor_region
@@ -173,6 +184,7 @@ class Runtime:
 
     def prioritize_task(self, task):
         with self.lock:
+            self._ui_requests.append(Task)
             for idx, queued_task in enumerate(self._queue):
                 if (queued_task.region == task.region and
                         queued_task.operation == task.operation and
@@ -184,6 +196,25 @@ class Runtime:
                     return True
             # If the task is not found, add it to the front of the queue
             self._queue.appendleft(task)
+            return False
+
+    def task_has_been_processed(self, task):
+        with self.lock:
+            for item in self._processed_tasks:
+                if (item.region == task.region and
+                        item.operation == task.operation and
+                        item.period == task.period):
+                    return True
+            return False
+
+    def ui_has_requested_task(self, task):
+        with self.lock:
+            for item in self._ui_requests:
+                if (item.region == task.region and
+                        item.operation == task.operation and
+                        item.period == task.period):
+                    self._ui_requests.remove(item)
+                    return True
             return False
 
 

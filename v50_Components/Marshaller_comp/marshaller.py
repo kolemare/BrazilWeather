@@ -107,13 +107,18 @@ def handle_transformer(client):
 
 def handle_processor(client):
     while not runtime.system_shutdown:
-        time.sleep(5)
+        time.sleep(3)
         if not runtime.hadoop_status:
             continue
 
         task = runtime.get_task()
 
         if task is None:
+            continue
+
+        if runtime.task_has_been_processed(task):
+            if runtime.ui_has_requested_task(task):
+                client.publish("ui", f"marshaller:{task.region}:{task.operation}:{task.period}:success")
             continue
 
         # Check if the region is available (already transformed in curated zone)
@@ -127,9 +132,10 @@ def handle_processor(client):
                                          runtime.time_threshold)
         if response is not None:
             if response == f"{task.operation}:{task.region}:{task.period}:success":
-                write_output(f"Marshaller: Success for calculating {task.operation} for {task.region}")
-                runtime.processed_tasks.append(
-                    {'region': task.region, 'operation': task.operation, 'period': task.period})
+                write_output(f"Marshaller: Success for calculating {task.operation} for {task.region}, period: {task.period}")
+                runtime.processed_tasks.append(task)
+                if runtime.ui_has_requested_task(task):
+                    client.publish("ui", f"marshaller:{task.region}:{task.operation}:{task.period}:success")
             elif response == f"{task.operation}:{task.region}:{task.period}:failure":
                 write_output(f"Marshaller: Failed Re-requesting calculation of {task.operation} for {task.region}")
             else:

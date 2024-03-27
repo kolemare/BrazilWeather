@@ -24,9 +24,15 @@ else
     # Process flags
     while [ $# -gt 0 ]; do
         case "$1" in
-            --prune)
+            --clean)
                 # Prune all unused Docker objects
                 yes | docker system prune -a
+                docker build -t marshaller-image -f ./v50_Components/Marshaller_comp/Dockerfile .
+                docker build -t loader-image -f ./v50_Components/Loader_comp/Dockerfile .
+                docker build -t transformer-image -f ./v50_Components/Transformer_comp/Dockerfile .
+                docker build -t processor-image -f ./v50_Components/Processor_comp/Dockerfile .
+                docker build -t hadoop-image -f ./v50_Components/Hadoop_comp/Dockerfile .
+                docker build -t mosquitto-image -f ./v50_Components/Mosquitto_comp/Dockerfile .
                 ;;
             --marshaller)
                 docker stop marshaller-container
