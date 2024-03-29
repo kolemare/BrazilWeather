@@ -20,16 +20,23 @@ class Runtime:
         # Extract configuration values
         self._data = json_config['data']
         self._time_threshold = json_config['max_wait_time']
+        self._alive_ping = (json_config['alive_ping'])
         self._hadoop_boot = json_config['hadoop_boot']
         self._port = json_config['port']
         self.batch_tasks = json_config['batch_tasks']
+        self.sleep_duration = int(json_config['default_sleep'])
         self.shutdown_components = json_config['shutdown_components']
 
         # Global variables
         self._hadoop_status = False
+        self._hadoop_services = False
+        self._loader_status = False
+        self._transformer_status = False
+        self._processor_status = False
         self._system_shutdown = False
         self._queue = deque()
         self._response_events = {}
+        self._loader_completed = []
         self._transformer_task = []
         self._processor_region = []
         self._processed_tasks = []
@@ -81,6 +88,66 @@ class Runtime:
             self._port = value
 
     @property
+    def sleep_duration(self):
+        with self.lock:
+            return self._sleep_duration
+
+    @sleep_duration.setter
+    def sleep_duration(self, value):
+        with self.lock:
+            self._sleep_duration = value
+
+    @property
+    def hadoop_services(self):
+        with self.lock:
+            return self._hadoop_services
+
+    @hadoop_services.setter
+    def hadoop_services(self, value):
+        with self.lock:
+            self._hadoop_services = value
+
+    @property
+    def alive_ping(self):
+        with self.lock:
+            return self._alive_ping
+
+    @alive_ping.setter
+    def alive_ping(self, value):
+        with self.lock:
+            self._alive_ping = value
+
+    @property
+    def loader_status(self):
+        with self.lock:
+            return self._loader_status
+
+    @loader_status.setter
+    def loader_status(self, value):
+        with self.lock:
+            self._loader_status = value
+
+    @property
+    def transformer_status(self):
+        with self.lock:
+            return self._transformer_status
+
+    @transformer_status.setter
+    def transformer_status(self, value):
+        with self.lock:
+            self._transformer_status = value
+
+    @property
+    def processor_status(self):
+        with self.lock:
+            return self._processor_status
+
+    @processor_status.setter
+    def processor_status(self, value):
+        with self.lock:
+            self._processor_status = value
+
+    @property
     def hadoop_status(self):
         with self.lock:
             return self._hadoop_status
@@ -109,6 +176,16 @@ class Runtime:
     def response_events(self, value):
         with self.lock:
             self._response_events = value
+
+    @property
+    def loader_completed(self):
+        with self.lock:
+            return self._loader_completed
+
+    @loader_completed.setter
+    def loader_completed(self, value):
+        with self.lock:
+            self._loader_completed = value
 
     @property
     def transformer_task(self):

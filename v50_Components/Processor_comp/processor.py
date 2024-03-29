@@ -40,6 +40,9 @@ class Processor:
             if command == "shutdown":
                 self.shutdown_event.set()
                 return f"{request_id}:processor:{command}:acknowledged"
+            elif command == "alive" and item == "request":
+                self.comm.send_info("Alive => Running...")
+                return f"{request_id}:processor:alive:waiting"
             else:
                 self.comm.send_info(f"Unknown command: {command}")
                 return f"{request_id}:{command}:{item}:error"

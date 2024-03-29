@@ -11,12 +11,13 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Install required Python packages
-RUN pip3 install pandas pyarrow numpy hdfs paho-mqtt==1.6.1 matplotlib
+RUN pip3 install pandas pyarrow numpy hdfs paho-mqtt==1.6.1 matplotlib Pillow
 
 # Copy the UI system and common scripts to the container
 COPY /../v50_Components/UI_comp/uisystem.py ./
 COPY /../v50_Components/UI_comp/daohandler.py ./
 COPY /../v50_Components/UI_comp/comm.py ./
+COPY /../v50_Components/UI_comp/utils ./utils
 
 # Ensure the UI system script is executable
 RUN chmod +x uisystem.py

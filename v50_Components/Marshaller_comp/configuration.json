@@ -29,7 +29,9 @@
             "period": "5"
         }
     ],
-    "max_wait_time": 300,
-    "hadoop_boot": 60,
+    "alive_ping": 30,
+    "max_wait_time": 180,
+    "hadoop_boot": 120,
+    "default_sleep": 3,
     "port": 1883
 }

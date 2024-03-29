@@ -61,6 +61,9 @@ class Loader:
             comm.send_info(f"Received request to load {item}")
             result = self.process_load_request(item, comm)
             return f"{request_id}:{command}:{item}:{result}"
+        elif command == "alive" and item == "request":
+            comm.send_info("Alive => Running...")
+            return f"{request_id}:loader:alive:waiting"
         elif command == "shutdown":
             comm.send_info("Received shutdown command!")
             self.shutdown_event.set()

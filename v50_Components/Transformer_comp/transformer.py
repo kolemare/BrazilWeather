@@ -52,6 +52,9 @@ class Transformer:
             except Exception as e:
                 comm.send_info(f"Error transforming data for {region}: {e}")
                 return f"{request_id}:{command}:{region}:failure"
+        elif command == "alive" and region == "request":
+            comm.send_info("Alive => Running...")
+            return f"{request_id}:transformer:alive:waiting"
         elif command == "shutdown":
             comm.send_info("Received shutdown command!")
             self.shutdown_event.set()

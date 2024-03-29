@@ -1,3 +1,4 @@
+import time
 import tkinter as tk
 from tkinter import ttk
 import matplotlib.pyplot as plt
@@ -10,6 +11,7 @@ import pandas as pd
 import sqlite3
 import threading
 import os
+from PIL import Image, ImageTk
 
 
 class UISystem:
@@ -50,12 +52,21 @@ class UISystem:
         self.numeric_entry.pack(side=tk.LEFT)
 
         # Button
-        self.button = tk.Button(self.root, text="Plot", command=self.plot_data)
+        self.button = tk.Button(self.root, text="Request", command=self.plot_data)
         self.button.pack(side=tk.LEFT)
 
+        # Shutdown button
+        shutdown_icon = Image.open("utils/shutdown.png")
+        shutdown_icon = shutdown_icon.resize((20, 20), Image.Resampling.LANCZOS)
+        shutdown_photo = ImageTk.PhotoImage(shutdown_icon)
+        self.shutdown_button = tk.Button(self.root, image=shutdown_photo, command=self.shutdown)
+        self.shutdown_button.image = shutdown_photo
+        self.shutdown_button.pack(side=tk.RIGHT)
+        self.comm.send_info("Initialized.")
+
     def ui_callback(self, payload, topic):
-        self.show_message(payload)
         if "database" == topic:
+            self.comm.send_info("Received data, sending to database...")
             DaoHandler.write_to_db(payload)
         elif "ui" == topic:
             parts = payload.split(":")
@@ -65,6 +76,7 @@ class UISystem:
                 source, region, operation, period, state = parts
                 if "marshaller" == source:
                     if "success" == state:
+                        self.comm.send_info("Received data is ready for plotting.")
                         self.query_and_plot(operation, region, int(period))
                     else:
                         self.show_message(payload)
@@ -121,6 +133,11 @@ class UISystem:
         df = DaoHandler.get_table(operation, region, period)
         print(df)
 
+    def shutdown(self):
+        self.comm.send_info("Requesting shutdown...")
+        self.comm.client.publish("marshaller", f"{None}:shutdown:{None}")
+        self.shutdown_event.set()
+        self.root.destroy()
 
 
 if __name__ == "__main__":
@@ -135,4 +152,3 @@ if __name__ == "__main__":
     ui.shutdown_event.wait()
     ui.comm.send_info("Shutting down...")
     ui.comm.stop()
-    root.destroy()
