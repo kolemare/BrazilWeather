@@ -29,7 +29,7 @@ class Processor:
                 self.region = region
                 return True
         except Exception as e:
-            self.comm.send_info(f"Processor: Failed to load data for {region}: {e}")
+            self.comm.send_info(f"Failed to load data for {region}: {e}")
             self.data[region] = None
             return False
 
@@ -47,15 +47,18 @@ class Processor:
             request_id, calculation, region, period = parts
             if calculation == "avg_temp" and self.check_read_parquet_from_hdfs(region):
                 result = Calculator.calculate_avg_temp(region, self.data, int(period))
-                self.comm.send_info(str(result))
+                result_str = result.to_json()
             elif calculation == "total_rainfall" and self.check_read_parquet_from_hdfs(region):
                 result = Calculator.calculate_total_rainfall(region, self.data, int(period))
-                self.comm.send_info(str(result))
+                result_str = result.to_json()
             elif calculation == "pressure_extremes" and self.check_read_parquet_from_hdfs(region):
                 result = Calculator.calculate_pressure_extremes(region, self.data, int(period))
-                self.comm.send_info(str(result))
+                result_str = result.to_json()
             else:
                 return f"{request_id}:{calculation}:{region}:{period}:failure"
+            self.comm.send_info(f"Successfully finished processing:{calculation} for {region} duration: {period}")
+            self.comm.send_info(f"Sending result to database: {calculation} for {region} for {period} to DB")
+            self.comm.client.publish("database", f"{calculation}:{result_str}")
             return f"{request_id}:{calculation}:{region}:{period}:success"
 
 

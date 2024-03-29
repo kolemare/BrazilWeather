@@ -1,16 +1,14 @@
-# Use Ubuntu as the base image
+# Set ubuntu as base image
 FROM ubuntu:20.04
 
 # Avoid prompts from apt
 ENV DEBIAN_FRONTEND noninteractive
 
-# Install Python, pip, and required system dependencies for Tkinter and matplotlib
+# Install dependencies
 RUN apt-get update && \
-    apt-get install -y python3 python3-pip python3-tk && \
+    apt-get install -y xauth python3 python3-pip python3-tk sqlite3 && \
+    apt-get clean && \
     rm -rf /var/lib/apt/lists/*
-
-# Set the working directory in the container
-WORKDIR /usr/src/app
 
 # Install required Python packages
 RUN pip3 install pandas pyarrow numpy hdfs paho-mqtt==1.6.1 matplotlib

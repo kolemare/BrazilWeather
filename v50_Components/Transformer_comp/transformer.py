@@ -39,6 +39,7 @@ class Transformer:
             return "command:invalid"
         request_id, command, region = parts
         if command == "transform":
+            comm.send_info(f"Received request to transform {region}")
             try:
                 path = f'/datalake/transformed/{region}.parquet'
                 comm.send_info(f"Cleaning data for {region}...")
@@ -52,6 +53,7 @@ class Transformer:
                 comm.send_info(f"Error transforming data for {region}: {e}")
                 return f"{request_id}:{command}:{region}:failure"
         elif command == "shutdown":
+            comm.send_info("Received shutdown command!")
             self.shutdown_event.set()
             return f"{request_id}:transformer:{command}:acknowledged"
         else:

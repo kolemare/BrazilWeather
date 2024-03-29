@@ -58,9 +58,11 @@ class Loader:
             return "command:invalid"
         request_id, command, item = parts
         if command == "load":
+            comm.send_info(f"Received request to load {item}")
             result = self.process_load_request(item, comm)
             return f"{request_id}:{command}:{item}:{result}"
         elif command == "shutdown":
+            comm.send_info("Received shutdown command!")
             self.shutdown_event.set()
             return f"{request_id}:loader:{command}:acknowledged"
         else:

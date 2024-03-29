@@ -3,16 +3,21 @@
 # Navigate to the script's directory
 cd "$(dirname "$0")/.."
 
+# Stop all running Docker containers
+docker stop -f $(docker ps -aq)
+
+# Remove all Docker containers
+docker rm -f $(docker ps -aq)
+
+# Remove all Docker images
+docker rmi -f $(docker images -q)
+
+# Remove dangling images
+docker images --quiet --filter "dangling=true" | xargs --no-run-if-empty sudo docker rmi -f
+
+
 # Check for flags
 if [ $# -eq 0 ]; then
-    docker stop $(docker ps -aq)
-
-    # Remove all Docker containers
-    docker rm $(docker ps -aq)
-
-    # Remove all Docker images
-    docker rmi $(docker images -q)
-
     # Build all Docker images if no flags provided
     docker build -t marshaller-image -f ./v50_Components/Marshaller_comp/Dockerfile .
     docker build -t loader-image -f ./v50_Components/Loader_comp/Dockerfile .
@@ -20,6 +25,7 @@ if [ $# -eq 0 ]; then
     docker build -t processor-image -f ./v50_Components/Processor_comp/Dockerfile .
     docker build -t hadoop-image -f ./v50_Components/Hadoop_comp/Dockerfile .
     docker build -t mosquitto-image -f ./v50_Components/Mosquitto_comp/Dockerfile .
+    docker build -t ui-image -f ./v50_Components/UI_comp/Dockerfile .
 else
     # Process flags
     while [ $# -gt 0 ]; do
@@ -33,6 +39,7 @@ else
                 docker build -t processor-image -f ./v50_Components/Processor_comp/Dockerfile .
                 docker build -t hadoop-image -f ./v50_Components/Hadoop_comp/Dockerfile .
                 docker build -t mosquitto-image -f ./v50_Components/Mosquitto_comp/Dockerfile .
+                docker build -t ui-image -f ./v50_Components/UI_comp/Dockerfile .
                 ;;
             --marshaller)
                 docker stop marshaller-container
@@ -64,11 +71,17 @@ else
                 docker rmi hdfs-container
                 docker build -t hadoop-image -f ./v50_Components/Hadoop_comp/Dockerfile .
                 ;;
-            --mqqt)
+            --mqtt)
                 docker stop mqtt-broker
                 docker rm mqtt-broker
                 docker rmi mqtt-broker
                 docker build -t mosquitto-image -f ./v50_Components/Mosquitto_comp/Dockerfile .
+                ;;
+            --ui)
+                docker stop ui-container
+                docker rm ui-container
+                docker rmi ui-container
+                docker build -t ui-image -f ./v50_Components/UI_comp/Dockerfile .
                 ;;
             *)
                 echo "Invalid flag: $1"
@@ -78,7 +91,7 @@ else
     done
 fi
 
-docker images | grep -v "latest" | awk '{print $3}' | xargs docker rmi
+docker images | grep -v "latest" | awk '{print $3}' | xargs docker rmi -f
 
 # List Docker images
 docker images

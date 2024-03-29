@@ -111,13 +111,29 @@ def handle_processor(client):
         if not runtime.hadoop_status:
             continue
 
+        for group in runtime.task_clusters:
+            task_group_processed = True
+            temp_task = None
+            for single in group:
+                temp_task = single
+                if not runtime.task_has_been_processed(single):
+                    task_group_processed = False
+            if task_group_processed:
+                write_output("Marshaller: Task cluster processed")
+                write_output(f"UI: Request for all regions {temp_task.operation} for duration {temp_task.period} is ready.")
+                client.publish("ui", f"marshaller:all:{temp_task.operation}:{temp_task.period}:success")
+                runtime.task_clusters.remove(group)
+
         task = runtime.get_task()
 
         if task is None:
+            write_output("Processor: No tasks in queue")
             continue
 
         if runtime.task_has_been_processed(task):
+            write_output("Marshaller: Requested task has already been processed!")
             if runtime.ui_has_requested_task(task):
+                write_output(f"UI: Request for region: {task.region}, calculation: {task.operation} for duration {task.period} is ready.")
                 client.publish("ui", f"marshaller:{task.region}:{task.operation}:{task.period}:success")
             continue
 
@@ -132,9 +148,11 @@ def handle_processor(client):
                                          runtime.time_threshold)
         if response is not None:
             if response == f"{task.operation}:{task.region}:{task.period}:success":
-                write_output(f"Marshaller: Success for calculating {task.operation} for {task.region}, period: {task.period}")
+                write_output(
+                    f"Marshaller: Success for calculating {task.operation} for {task.region}, period: {task.period}")
                 runtime.processed_tasks.append(task)
                 if runtime.ui_has_requested_task(task):
+                    write_output(f"UI: Request for region: {task.region}, calculation: {task.operation} for duration {task.period} is ready.")
                     client.publish("ui", f"marshaller:{task.region}:{task.operation}:{task.period}:success")
             elif response == f"{task.operation}:{task.region}:{task.period}:failure":
                 write_output(f"Marshaller: Failed Re-requesting calculation of {task.operation} for {task.region}")
@@ -155,12 +173,16 @@ def handle_ui(client, payload):
         runtime.system_shutdown = True
         for item in runtime.shutdown_components:
             shut_down_component(client, item)
-        client.publish("ui", "Shutting down...")
     else:
-        if runtime.prioritize_task(Task(region, command, period)):
-            client.publish("ui", "Task exists, adding priority.")
+        write_output(f"UI: Has requested {command} for region: {region} for period {period}")
+        if "all" == region:
+            task_group = []
+            for item in runtime.data:
+                runtime.prioritize_task(Task(item, command, int(period)), all_regions=True)
+                task_group.append(Task(item, command, int(period)))
+            runtime.task_clusters.append(task_group)
         else:
-            client.publish("ui", "Created task for calculation")
+            runtime.prioritize_task(Task(region, command, int(period)), all_regions=False)
 
 
 def shut_down_component(client, component):
@@ -168,7 +190,6 @@ def shut_down_component(client, component):
         response = send_request_and_wait(client, component, f"shutdown:{None}", runtime.time_threshold)
         if response is not None:
             if response == f"{component}:shutdown:acknowledged":
-                client.publish("ui", f"Shutting down {component}...")
                 return
             else:
                 write_output(f"Marshaller: Re-requesting shutdown of {component}.")

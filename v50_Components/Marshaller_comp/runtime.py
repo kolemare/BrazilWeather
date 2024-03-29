@@ -33,6 +33,7 @@ class Runtime:
         self._transformer_task = []
         self._processor_region = []
         self._processed_tasks = []
+        self._task_clusters = []
         self._ui_requests = []
         self._transformed = 0
 
@@ -130,6 +131,16 @@ class Runtime:
             self._processed_tasks = value
 
     @property
+    def task_clusters(self):
+        with self.lock:
+            return self._task_clusters
+
+    @task_clusters.setter
+    def task_clusters(self, value):
+        with self.lock:
+            self._task_clusters = value
+
+    @property
     def ui_requests(self):
         with self.lock:
             return self._ui_requests
@@ -137,7 +148,7 @@ class Runtime:
     @ui_requests.setter
     def ui_requests(self, value):
         with self.lock:
-            self.ui_requests = value
+            self._ui_requests = value
 
     @property
     def processor_region(self):
@@ -182,9 +193,10 @@ class Runtime:
             else:
                 return None
 
-    def prioritize_task(self, task):
+    def prioritize_task(self, task, all_regions=False):
         with self.lock:
-            self._ui_requests.append(Task)
+            if not all_regions:
+                self._ui_requests.append(task)
             for idx, queued_task in enumerate(self._queue):
                 if (queued_task.region == task.region and
                         queued_task.operation == task.operation and
@@ -203,7 +215,7 @@ class Runtime:
             for item in self._processed_tasks:
                 if (item.region == task.region and
                         item.operation == task.operation and
-                        item.period == task.period):
+                        item.period >= task.period):
                     return True
             return False
 
