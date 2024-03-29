@@ -228,7 +228,3 @@ class Runtime:
                     self._ui_requests.remove(item)
                     return True
             return False
-
-
-# Create a singleton instance of the Runtime class
-runtime = Runtime()

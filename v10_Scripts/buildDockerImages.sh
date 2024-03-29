@@ -9,9 +9,6 @@ docker stop -f $(docker ps -aq)
 # Remove all Docker containers
 docker rm -f $(docker ps -aq)
 
-# Remove all Docker images
-docker rmi -f $(docker images -q)
-
 # Remove dangling images
 docker images --quiet --filter "dangling=true" | xargs --no-run-if-empty sudo docker rmi -f
 
@@ -31,6 +28,9 @@ else
     while [ $# -gt 0 ]; do
         case "$1" in
             --clean)
+                # Remove all Docker images
+                docker rmi -f $(docker images -q)
+
                 # Prune all unused Docker objects
                 yes | docker system prune -a
                 docker build -t marshaller-image -f ./v50_Components/Marshaller_comp/Dockerfile .

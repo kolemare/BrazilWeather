@@ -10,6 +10,8 @@ RUN pip install --no-cache-dir paho-mqtt==1.6.1
 # Copy the Python script into the container
 COPY /../v50_Components/Marshaller_comp/marshaller.py ./
 COPY /../v50_Components/Marshaller_comp/runtime.py ./
+COPY /../v50_Components/Marshaller_comp/logger.py ./
+COPY /../v50_Components/Marshaller_comp/comm.py ./
 COPY /../v50_Components/Marshaller_comp/configuration.json ./
 
 # Expose a port
