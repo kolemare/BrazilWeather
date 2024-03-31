@@ -6,21 +6,21 @@ class Comm:
         self.broker_address = broker_address
         self.request_topic = request_topic
         self.response_topic = response_topic
-        self.client = Client(client_id="loader")
+        self.client = Client(client_id="realtime")
         self.client.on_message = self.on_message
         self.callback = None
 
     def on_message(self, client, userdata, message):
         payload = str(message.payload.decode('utf-8'))
-        print(f"Loader: Received request: {payload}")
+        print(f"Realtime: Received request: {payload}")
 
         if self.callback:
-            response = self.callback(payload, self)
+            response = self.callback(payload)
             if response is not None:
                 self.client.publish(self.response_topic, response)
 
     def send_info(self, message):
-        self.client.publish("info", "Loader: " + str(message))
+        self.client.publish("info", "Realtime: " + str(message))
 
     def start(self, callback):
         self.callback = callback

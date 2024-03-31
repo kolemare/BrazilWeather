@@ -9,6 +9,9 @@
 /v40_Libraries/*
 !/v40_Libraries/.gitkeep
 
+# Ignore the apikey file
+/v50_Components/Realtime_comp/apikey.json
+
 # Ignore credentials and token files
 credentials.json
 token.json

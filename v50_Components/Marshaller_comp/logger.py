@@ -18,7 +18,7 @@ class Logger:
             "Transformer": '\033[96m',  # Cyan
             "DAO": '\033[95m',  # Purple
             "Marshaller": '\033[90m',  # Black
-            "Runtime": '\033[91m'  # Red
+            "Realtime": '\033[91m'  # Red
         }
 
         reset_code = '\033[0m'

@@ -24,6 +24,7 @@ class Runtime:
         self._hadoop_boot = json_config['hadoop_boot']
         self._port = json_config['port']
         self.batch_tasks = json_config['batch_tasks']
+        self.realtime_tasks = json_config['realtime_tasks']
         self.sleep_duration = int(json_config['default_sleep'])
         self.shutdown_components = json_config['shutdown_components']
 
@@ -33,7 +34,10 @@ class Runtime:
         self._loader_status = False
         self._transformer_status = False
         self._processor_status = False
+        self._realtime_status = False
+        self._realtime_running = False
         self._system_shutdown = False
+        self._realtime_configuration = False
         self._queue = deque()
         self._response_events = {}
         self._loader_completed = []
@@ -148,6 +152,36 @@ class Runtime:
     def processor_status(self, value):
         with self.lock:
             self._processor_status = value
+
+    @property
+    def realtime_status(self):
+        with self.lock:
+            return self._realtime_status
+
+    @realtime_status.setter
+    def realtime_status(self, value):
+        with self.lock:
+            self._realtime_status = value
+
+    @property
+    def realtime_running(self):
+        with self.lock:
+            return self._realtime_running
+
+    @realtime_running.setter
+    def realtime_running(self, value):
+        with self.lock:
+            self._realtime_running = value
+
+    @property
+    def realtime_configuration(self):
+        with self.lock:
+            return self._realtime_configuration
+
+    @realtime_configuration.setter
+    def realtime_configuration(self, value):
+        with self.lock:
+            self._realtime_configuration = value
 
     @property
     def hadoop_status(self):

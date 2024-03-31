@@ -140,7 +140,7 @@ class Marshaller:
                     self.runtime.transformer_status = True
                     self.comm.send_info("Transformer component is alive")
                 else:
-                    self.runtime.transformer_status = True
+                    self.runtime.transformer_status = False
                     continue
 
             if self.runtime.transformed == len(self.runtime.data):
@@ -166,7 +166,7 @@ class Marshaller:
                         self.comm.send_info(f"Unknown error (transformer)")
                 else:
                     self.comm.send_info("Timeout for transform request.")
-                    raise Exception("Timeout for transform request")
+                    self.runtime.transformer_status = False
         return self.shut_down_component("transformer")
 
     def handle_processor(self):
@@ -240,6 +240,58 @@ class Marshaller:
                 self.runtime.processor_status = False
         return self.shut_down_component("processor")
 
+    def handle_relatime(self):
+        while not self.runtime.system_shutdown:
+            self.default_sleep()
+
+            if not self.runtime.realtime_status:
+                if self.alive_ping("realtime"):
+                    self.runtime.realtime_status = True
+                    self.comm.send_info("Realtime component is alive")
+                else:
+                    self.runtime.realtime_status = False
+                    continue
+
+            if not self.runtime.realtime_configuration:
+                self.runtime.realtime_configuration = True
+                for item in self.runtime.realtime_tasks:
+                    response = self.send_request_and_wait("realtime", f"configuration:{item}",
+                                                          self.runtime.time_threshold)
+                    if response is not None:
+                        if response == f"configuration:{item}:success":
+                            self.comm.send_info(f"Success requesting processing: {item} for Realtime.")
+                        elif response == f"configuration:{item}:failure":
+                            self.comm.send_info(f"Failed Re-requesting processing of: {item} for Realtime")
+                            self.runtime.realtime_configuration = False
+                        else:
+                            self.comm.send_info(f"Unknown error (Realtime)")
+                            self.runtime.realtime_configuration = False
+                    else:
+                        self.comm.send_info("Timeout for configuration for (Realtime) request.")
+                        self.runtime.realtime_configuration = False
+                        self.runtime.realtime_status = False
+                    self.default_sleep()
+
+            if not self.runtime.realtime_running:
+                if self.runtime.realtime_configuration and self.runtime.realtime_status:
+                    response = self.send_request_and_wait("realtime", "start:realtime",
+                                                          self.runtime.time_threshold)
+                    if response is not None:
+                        if response == f"start:success":
+                            self.comm.send_info(f"Successfully started Realtime processing.")
+                            self.runtime.realtime_running = True
+                        elif response == f"start:failure":
+                            self.comm.send_info(f"Failed Re-requesting starting of Realtime processing")
+                            self.runtime.realtime_running = False
+                        else:
+                            self.comm.send_info(f"Unknown error (Realtime)")
+                            self.runtime.realtime_running = False
+                    else:
+                        self.comm.send_info("Timeout for configuration for (Realtime) request.")
+                        self.runtime.realtime_running = False
+                        self.runtime.realtime_status = False
+        return self.shut_down_component("realtime")
+
     def handle_ui(self, payload):
         parts = payload.split(":")
         if len(parts) != 3:
@@ -289,16 +341,19 @@ class Marshaller:
         transformer_thread = threading.Thread(target=self.handle_transformer, args=())
         processor_thread = threading.Thread(target=self.handle_processor, args=())
         loader_thread = threading.Thread(target=self.handle_loader, args=())
+        realtime_thread = threading.Thread(target=self.handle_relatime, args=())
 
         hdfs_thread.start()
         transformer_thread.start()
         processor_thread.start()
         loader_thread.start()
+        realtime_thread.start()
 
         hdfs_thread.join()
         transformer_thread.join()
         processor_thread.join()
         loader_thread.join()
+        realtime_thread.join()
 
         self.comm.client.loop_stop()
 

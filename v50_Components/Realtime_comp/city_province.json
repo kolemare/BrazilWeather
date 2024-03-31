@@ -1,0 +1,50 @@
+{
+  "city_province_mapping": [
+    {
+      "north": [
+        { "province": "AC", "city": "Rio Branco" },
+        { "province": "AM", "city": "Manaus" },
+        { "province": "AP", "city": "Macapa" },
+        { "province": "PA", "city": "Belem" },
+        { "province": "RO", "city": "Porto Velho" },
+        { "province": "TO", "city": "Palmas" }
+      ]
+    },
+    {
+      "central_west": [
+        { "province": "DF", "city": "Brasilia" },
+        { "province": "GO", "city": "Goiania" },
+        { "province": "MS", "city": "Campo Grande" },
+        { "province": "MT", "city": "Cuiaba" }
+      ]
+    },
+    {
+      "northeast": [
+        { "province": "AL", "city": "Maceio" },
+        { "province": "BA", "city": "Salvador" },
+        { "province": "CE", "city": "Fortaleza" },
+        { "province": "MA", "city": "Sao Luis" },
+        { "province": "PB", "city": "Joao Pessoa" },
+        { "province": "PE", "city": "Recife" },
+        { "province": "PI", "city": "Teresina" },
+        { "province": "RN", "city": "Natal" },
+        { "province": "SE", "city": "Aracaju" }
+      ]
+    },
+    {
+      "south": [
+        { "province": "PR", "city": "Curitiba" },
+        { "province": "RS", "city": "Porto Alegre" },
+        { "province": "SC", "city": "Florianopolis" }
+      ]
+    },
+    {
+      "southeast": [
+        { "province": "ES", "city": "Vitoria" },
+        { "province": "MG", "city": "Belo Horizonte" },
+        { "province": "RJ", "city": "Rio de Janeiro" },
+        { "province": "SP", "city": "Sao Paulo" }
+      ]
+    }
+  ]
+}

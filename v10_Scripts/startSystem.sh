@@ -28,6 +28,9 @@ docker run -d --rm --network docker-network --name transformer-container transfo
 # Start the Processor container
 docker run -d --rm --network docker-network --name processor-container processor-image
 
+# Start the Realtime container
+docker run -d --rm --network docker-network --name realtime-container realtime-image
+
 # Start the UI container, passing the MQTT broker's IP address
 xhost +local:docker
 docker run -d --rm --name ui-container --net=host -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix -e MQTT_BROKER_IP=$mqtt_ip ui-image

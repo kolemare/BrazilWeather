@@ -22,6 +22,7 @@ if [ $# -eq 0 ]; then
     docker build -t processor-image -f ./v50_Components/Processor_comp/Dockerfile .
     docker build -t hadoop-image -f ./v50_Components/Hadoop_comp/Dockerfile .
     docker build -t mosquitto-image -f ./v50_Components/Mosquitto_comp/Dockerfile .
+    docker build -t realtime-image -f ./v50_Components/Realtime_comp/Dockerfile .
     docker build -t ui-image -f ./v50_Components/UI_comp/Dockerfile .
 else
     # Process flags
@@ -39,6 +40,7 @@ else
                 docker build -t processor-image -f ./v50_Components/Processor_comp/Dockerfile .
                 docker build -t hadoop-image -f ./v50_Components/Hadoop_comp/Dockerfile .
                 docker build -t mosquitto-image -f ./v50_Components/Mosquitto_comp/Dockerfile .
+                docker build -t realtime-image -f ./v50_Components/Realtime_comp/Dockerfile .
                 docker build -t ui-image -f ./v50_Components/UI_comp/Dockerfile .
                 ;;
             --marshaller)
@@ -82,6 +84,13 @@ else
                 docker rm mqtt-broker
                 docker rmi $IMAGE_ID
                 docker build -t mosquitto-image -f ./v50_Components/Mosquitto_comp/Dockerfile .
+                ;;
+            --realtime)
+                IMAGE_ID=$(docker images --format "{{.ID}}" --filter=reference="realtime-image")
+                docker stop realtime-container
+                docker rm realtime-container
+                docker rmi $IMAGE_ID
+                docker build -t realtime-image -f ./v50_Components/Realtime_comp/Dockerfile .
                 ;;
             --ui)
                 IMAGE_ID=$(docker images --format "{{.ID}}" --filter=reference="ui-image")

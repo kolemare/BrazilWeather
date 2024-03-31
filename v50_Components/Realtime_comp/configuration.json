@@ -1,0 +1,5 @@
+{
+    "request_sleep": 1,
+    "default_sleep": 3,
+    "request_url": "http://api.openweathermap.org/data/2.5/weather?"
+}

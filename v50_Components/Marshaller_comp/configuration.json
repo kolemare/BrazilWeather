@@ -13,6 +13,14 @@
         "southeast"
     ],
 
+    "realtime_tasks": [
+        "central_west",
+        "north",
+        "northeast",
+        "south",
+        "southeast"
+    ],
+
     "alive_ping": 30,
     "max_wait_time": 180,
     "hadoop_boot": 120,

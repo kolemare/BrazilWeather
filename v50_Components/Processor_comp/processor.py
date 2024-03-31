@@ -73,7 +73,7 @@ class Processor:
                 return f"{request_id}:{calculation}:{region}:{period}:failure"
             result_str = result.to_json()
             self.comm.send_info(f"Successfully finished processing:{calculation} for {region} duration: {period}")
-            self.comm.send_info(f"Sending result to database: {calculation} for {region} for {period} to DB")
+            self.comm.send_info(f"Sending result to DAO: {calculation} for {region} for {period}")
             self.comm.client.publish("database", f"{calculation}:{result_str}")
             return f"{request_id}:{calculation}:{region}:{period}:success"
 
