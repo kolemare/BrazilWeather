@@ -42,45 +42,52 @@ else
                 docker build -t ui-image -f ./v50_Components/UI_comp/Dockerfile .
                 ;;
             --marshaller)
+                IMAGE_ID=$(docker images --format "{{.ID}}" --filter=reference="marshaller-image")
                 docker stop marshaller-container
                 docker rm marshaller-container
-                docker rmi marshaller-container
+                docker rmi $IMAGE_ID
                 docker build -t marshaller-image -f ./v50_Components/Marshaller_comp/Dockerfile .
                 ;;
             --loader)
+                IMAGE_ID=$(docker images --format "{{.ID}}" --filter=reference="loader-image")
                 docker stop loader-container
                 docker rm loader-container
-                docker rmi loader-container
+                docker rmi $IMAGE_ID
                 docker build -t loader-image -f ./v50_Components/Loader_comp/Dockerfile .
                 ;;
             --transformer)
+                IMAGE_ID=$(docker images --format "{{.ID}}" --filter=reference="transformer-image")
                 docker stop transformer-container
                 docker rm transformer-container
-                docker rmi transformer-container
+                docker rmi $IMAGE_ID
                 docker build -t transformer-image -f ./v50_Components/Transformer_comp/Dockerfile .
                 ;;
             --processor)
+                IMAGE_ID=$(docker images --format "{{.ID}}" --filter=reference="processor-image")
                 docker stop processor-container
                 docker rm processor-container
-                docker rmi processor-container
+                docker rmi $IMAGE_ID
                 docker build -t processor-image -f ./v50_Components/Processor_comp/Dockerfile .
                 ;;
             --hdfs)
+                IMAGE_ID=$(docker images --format "{{.ID}}" --filter=reference="hadoop-image")
                 docker stop hdfs-container
                 docker rm hdfs-container
-                docker rmi hdfs-container
+                docker rmi $IMAGE_ID
                 docker build -t hadoop-image -f ./v50_Components/Hadoop_comp/Dockerfile .
                 ;;
             --mqtt)
+                IMAGE_ID=$(docker images --format "{{.ID}}" --filter=reference="mosquitto-image")
                 docker stop mqtt-broker
                 docker rm mqtt-broker
-                docker rmi mqtt-broker
+                docker rmi $IMAGE_ID
                 docker build -t mosquitto-image -f ./v50_Components/Mosquitto_comp/Dockerfile .
                 ;;
             --ui)
+                IMAGE_ID=$(docker images --format "{{.ID}}" --filter=reference="ui-image")
                 docker stop ui-container
                 docker rm ui-container
-                docker rmi ui-container
+                docker rmi $IMAGE_ID
                 docker build -t ui-image -f ./v50_Components/UI_comp/Dockerfile .
                 ;;
             *)

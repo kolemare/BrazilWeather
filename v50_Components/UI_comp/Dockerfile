@@ -11,7 +11,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Install required Python packages
-RUN pip3 install pandas pyarrow numpy hdfs paho-mqtt==1.6.1 matplotlib Pillow
+RUN pip3 install pandas pyarrow numpy hdfs paho-mqtt==1.6.1 matplotlib Pillow seaborn
 
 # Copy the UI system and common scripts to the container
 COPY /../v50_Components/UI_comp/uisystem.py ./

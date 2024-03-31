@@ -69,7 +69,7 @@ pip install --upgrade pip
 
 # Install required libraries
 echo "Installing required libraries..."
-pip install google-api-python-client google-auth-oauthlib google-auth-httplib2 pandas pyarrow numpy hdfs paho-mqtt==1.6.1 matplotlib
+pip install google-api-python-client google-auth-oauthlib google-auth-httplib2 pandas pyarrow numpy hdfs paho-mqtt==1.6.1 matplotlib seaborn
 
 # Install Apache Airflow
 echo "Installing Apache Airflow..."

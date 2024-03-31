@@ -16,7 +16,7 @@ class Logger:
             "UI": '\033[92m',  # Green
             "Loader": '\033[93m',  # Yellow
             "Transformer": '\033[96m',  # Cyan
-            "Database": '\033[95m',  # Purple
+            "DAO": '\033[95m',  # Purple
             "Marshaller": '\033[90m',  # Black
             "Runtime": '\033[91m'  # Red
         }

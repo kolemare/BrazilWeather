@@ -38,6 +38,7 @@ class Processor:
         if len(parts) == 3:
             request_id, command, item = parts
             if command == "shutdown":
+                self.comm.send_info("Received shutdown command!")
                 self.shutdown_event.set()
                 return f"{request_id}:processor:{command}:acknowledged"
             elif command == "alive" and item == "request":
@@ -50,15 +51,27 @@ class Processor:
             request_id, calculation, region, period = parts
             if calculation == "avg_temp" and self.check_read_parquet_from_hdfs(region):
                 result = Calculator.calculate_avg_temp(region, self.data, int(period))
-                result_str = result.to_json()
             elif calculation == "total_rainfall" and self.check_read_parquet_from_hdfs(region):
                 result = Calculator.calculate_total_rainfall(region, self.data, int(period))
-                result_str = result.to_json()
             elif calculation == "pressure_extremes" and self.check_read_parquet_from_hdfs(region):
                 result = Calculator.calculate_pressure_extremes(region, self.data, int(period))
-                result_str = result.to_json()
+            elif calculation == "wind_speed" and self.check_read_parquet_from_hdfs(region):
+                result = Calculator.calculate_wind_speed(region, self.data, int(period))
+            elif calculation == "solar_radiation" and self.check_read_parquet_from_hdfs(region):
+                result = Calculator.calculate_total_solar_radiation(region, self.data, int(period))
+            elif calculation == "wind_direction_distribution" and self.check_read_parquet_from_hdfs(region):
+                result = Calculator.calculate_wind_direction_distribution(region, self.data, int(period))
+            elif calculation == "humidity_variability" and self.check_read_parquet_from_hdfs(region):
+                result = Calculator.calculate_humidity_variability(region, self.data, int(period))
+            elif calculation == "thermal_humidity_index" and self.check_read_parquet_from_hdfs(region):
+                result = Calculator.calculate_thi(region, self.data, int(period))
+            elif calculation == "dew_point_range" and self.check_read_parquet_from_hdfs(region):
+                result = Calculator.calculate_dew_point_range(region, self.data, int(period))
+            elif calculation == "air_temp_variability" and self.check_read_parquet_from_hdfs(region):
+                result = Calculator.calculate_air_temp_variability(region, self.data, int(period))
             else:
                 return f"{request_id}:{calculation}:{region}:{period}:failure"
+            result_str = result.to_json()
             self.comm.send_info(f"Successfully finished processing:{calculation} for {region} duration: {period}")
             self.comm.send_info(f"Sending result to database: {calculation} for {region} for {period} to DB")
             self.comm.client.publish("database", f"{calculation}:{result_str}")

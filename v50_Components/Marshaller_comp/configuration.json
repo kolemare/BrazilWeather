@@ -12,6 +12,13 @@
         "south",
         "southeast"
     ],
+
+    "alive_ping": 30,
+    "max_wait_time": 180,
+    "hadoop_boot": 120,
+    "default_sleep": 3,
+    "port": 1883,
+
     "batch_tasks": [
         {
             "operation": "avg_temp",
@@ -25,13 +32,43 @@
         },
         {
             "operation": "pressure_extremes",
-            "region": "central_west",
+            "region": "north",
             "period": "5"
+        },
+        {
+            "operation": "wind_speed",
+            "region": "north",
+            "period": "7"
+        },
+        {
+            "operation": "solar_radiation",
+            "region": "northeast",
+            "period": "6"
+        },
+        {
+            "operation": "wind_direction_distribution",
+            "region": "northeast",
+            "period": "4"
+        },
+        {
+            "operation": "humidity_variability",
+            "region": "south",
+            "period": "3"
+        },
+        {
+            "operation": "thermal_humidity_index",
+            "region": "south",
+            "period": "5"
+        },
+        {
+            "operation": "dew_point_range",
+            "region": "southeast",
+            "period": "7"
+        },
+        {
+            "operation": "air_temp_variability",
+            "region": "southeast",
+            "period": "6"
         }
-    ],
-    "alive_ping": 30,
-    "max_wait_time": 180,
-    "hadoop_boot": 120,
-    "default_sleep": 3,
-    "port": 1883
+    ]
 }

@@ -44,7 +44,9 @@ class Runtime:
         self._ui_requests = []
         self._transformed = 0
 
-        for task in self.batch_tasks:
+        # Sort the batch_tasks by region
+        sorted_tasks = sorted(self.batch_tasks, key=lambda x: x.get('region'))
+        for task in sorted_tasks:
             self._queue.append(Task(task.get('region'), task.get('operation'), int(task.get('period'))))
 
     @property

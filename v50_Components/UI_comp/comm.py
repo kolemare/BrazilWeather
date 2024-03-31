@@ -19,8 +19,11 @@ class Comm:
             if response is not None:
                 self.client.publish(self.response_topic, response)
 
-    def send_info(self, message):
+    def send_ui_info(self, message):
         self.client.publish("info", "UI: " + str(message))
+
+    def send_dao_info(self, message):
+        self.client.publish("info", "DAO: " + str(message))
 
     def start(self, callback):
         self.callback = callback
