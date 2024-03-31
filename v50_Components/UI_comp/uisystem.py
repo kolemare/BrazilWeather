@@ -32,46 +32,87 @@ class UISystem:
         self.canvas_widget = self.canvas.get_tk_widget()
         self.canvas_widget.pack(side=tk.TOP, fill=tk.BOTH, expand=1)
 
+        # Container frame for widgets
+        widget_frame = tk.Frame(self.root)
+        widget_frame.pack(side=tk.TOP, fill=tk.X)
+
+        # First row of widgets
+        first_row_frame = tk.Frame(widget_frame)
+        first_row_frame.pack(side=tk.TOP, fill=tk.X)
+
         # Dropdown for region selection
-        self.region_label = tk.Label(self.root, text="Region:")
+        self.region_label = tk.Label(first_row_frame, text="Region:")
         self.region_label.pack(side=tk.LEFT)
         self.region_var = tk.StringVar()
-        self.region_dropdown = ttk.Combobox(self.root, textvariable=self.region_var,
+        self.region_dropdown = ttk.Combobox(first_row_frame, textvariable=self.region_var,
                                             values=["central_west", "north", "northeast", "south", "southeast", "all"])
         self.region_dropdown.pack(side=tk.LEFT)
 
         # Dropdown for operation selection
-        self.operation_label = tk.Label(self.root, text="Operation:")
+        self.operation_label = tk.Label(first_row_frame, text="Operation:")
         self.operation_label.pack(side=tk.LEFT)
         self.operation_var = tk.StringVar()
-        self.operation_dropdown = ttk.Combobox(self.root, textvariable=self.operation_var,
-                                               values=["avg_temp",
-                                                       "total_rainfall",
-                                                       "pressure_extremes",
-                                                       "wind_speed",
-                                                       "solar_radiation",
-                                                       "wind_direction_distribution",
-                                                       "humidity_variability",
-                                                       "thermal_humidity_index",
-                                                       "dew_point_range",
-                                                       "air_temp_variability"])
+        self.operation_dropdown = ttk.Combobox(first_row_frame, textvariable=self.operation_var,
+                                               values=["avg_temp", "total_rainfall", "pressure_extremes", "wind_speed",
+                                                       "solar_radiation", "wind_direction_distribution",
+                                                       "humidity_variability", "thermal_humidity_index",
+                                                       "dew_point_range", "air_temp_variability"])
         self.operation_dropdown.pack(side=tk.LEFT)
 
         # Entry box for numerical input
-        self.numeric_entry = tk.Entry(self.root, width=5)
+        self.numeric_entry = tk.Entry(first_row_frame, width=5)
         self.numeric_entry.pack(side=tk.LEFT)
 
         # Button
-        self.button = tk.Button(self.root, text="Request", command=self.plot_data)
+        self.button = tk.Button(first_row_frame, text="Request ", command=self.plot_data)
         self.button.pack(side=tk.LEFT)
+
+        # Second row of widgets
+        second_row_frame = tk.Frame(widget_frame)
+        second_row_frame.pack(side=tk.TOP, fill=tk.X)
+
+        # Label for real-time region selection
+        self.rt_region_label = tk.Label(second_row_frame, text="Region:")
+        self.rt_region_label.pack(side=tk.LEFT)
+
+        # Dropdown for real-time region selection (same as the first region dropdown)
+        self.rt_region_var = tk.StringVar()
+        self.rt_region_dropdown = ttk.Combobox(second_row_frame, textvariable=self.rt_region_var,
+                                               values=["central_west", "north", "northeast", "south", "southeast",
+                                                       "all"])
+        self.rt_region_dropdown.pack(side=tk.LEFT)
+
+        # Label for real-time data type selection
+        self.rt_data_label = tk.Label(second_row_frame, text="Operation:")
+        self.rt_data_label.pack(side=tk.LEFT)
+
+        # Dropdown for real-time data type selection
+        self.rt_operation_var = tk.StringVar()
+        self.rt_data_dropdown = ttk.Combobox(second_row_frame, textvariable=self.rt_operation_var,
+                                             values=["temp_rt", "pressure_rt", "humidity_rt", "wind_speed_rt",
+                                                     "wind_direction_rt"])
+        self.rt_data_dropdown.pack(side=tk.LEFT)
+
+        # Entry box for real-time numerical input (same as the first numeric entry)
+        self.rt_numeric_entry = tk.Entry(second_row_frame, width=5)
+        self.rt_numeric_entry.pack(side=tk.LEFT)
+
+        # Button for real-time data request
+        self.rt_button = tk.Button(second_row_frame, text="Realtime", command=self.realtime_plot)
+        self.rt_button.pack(side=tk.LEFT)
+
+        # Frame for the shutdown button
+        shutdown_frame = tk.Frame(widget_frame)
+        shutdown_frame.pack(side=tk.RIGHT, fill=tk.Y)
 
         # Shutdown button
         shutdown_icon = Image.open("utils/shutdown.png")
         shutdown_icon = shutdown_icon.resize((20, 20), Image.Resampling.LANCZOS)
         shutdown_photo = ImageTk.PhotoImage(shutdown_icon)
-        self.shutdown_button = tk.Button(self.root, image=shutdown_photo, command=self.shutdown)
+        self.shutdown_button = tk.Button(shutdown_frame, image=shutdown_photo, command=self.shutdown)
         self.shutdown_button.image = shutdown_photo
-        self.shutdown_button.pack(side=tk.RIGHT)
+        self.shutdown_button.pack(side=tk.TOP)
+
         self.comm.send_ui_info("Initialized.")
 
     def ui_callback(self, payload, topic):
@@ -108,6 +149,14 @@ class UISystem:
             self.comm.client.publish("marshaller",
                                      f"{self.region_var.get()}:{self.operation_var.get()}:{int(self.numeric_entry.get())}")
             self.show_message("Requesting data availability...")
+
+    def realtime_plot(self):
+        # Check if all fields are filled
+        if not self.rt_operation_var.get() or not self.rt_region_var.get() or not self.rt_numeric_entry.get():
+            # Clear the plot and display a message
+            self.show_message("Please fill all fields for real-time data")
+        else:
+            pass
 
     def query_and_plot(self, operation, region, period):
         self.comm.send_ui_info(f"Plotting {operation} for {region} for {period}.")
