@@ -84,3 +84,16 @@ class DaoHandler:
         conn.close()
         return result_df
 
+    @staticmethod
+    def get_realtime_table(region):
+        conn = sqlite3.connect("database.db")
+
+        query = f"""
+                    SELECT * FROM realtime_data
+                    WHERE region = '{region}'
+                """
+
+        result_df = pd.read_sql_query(query, conn)
+
+        conn.close()
+        return result_df

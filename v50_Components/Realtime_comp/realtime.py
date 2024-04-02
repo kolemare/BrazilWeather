@@ -58,6 +58,17 @@ class Realtime:
                 if self.shutdown_event.is_set():
                     break
 
+    @staticmethod
+    def degrees_to_direction(degrees):
+        if 45 <= degrees < 135:
+            return 'E'
+        elif 135 <= degrees < 225:
+            return 'S'
+        elif 225 <= degrees < 315:
+            return 'W'
+        else:
+            return 'N'
+
     def fetch_weather_data_for_region(self, region):
         for city_info in self.city_province_mapping.get(region, []):
             city = city_info["city"]
@@ -67,16 +78,28 @@ class Realtime:
             if response and response.status_code == 200:
                 data = response.json()
                 current_time = datetime.datetime.utcnow()  # Get the current UTC time
+                temperature_celsius = round(data['main']['temp'] - 273.15, 2)  # Convert from Kelvin to Celsius
+                temperature_fahrenheit = (temperature_celsius * 9 / 5) + 32  # Convert from Celsius to Fahrenheit
+                humidity = data['main']['humidity']
+
+                # Calculate THI
+                thi = temperature_fahrenheit - ((0.55 - (0.55 * humidity / 100)) * (temperature_fahrenheit - 58))
+
+                # Determine wind direction
+                wind_direction = self.degrees_to_direction(data['wind']['deg'])
+
                 weather_data = {
-                    'temperature': round(data['main']['temp'] - 273.15, 2),  # Convert from Kelvin to Celsius
+                    'temperature': temperature_celsius,
                     'pressure': data['main']['pressure'],
-                    'humidity': data['main']['humidity'],
+                    'humidity': humidity,
                     'wind_speed': data['wind']['speed'],
                     'wind_degrees': data['wind']['deg'],
+                    'wind_direction': wind_direction,  # Add wind direction to the weather data
                     'prov': province,
                     'region': region,
                     'date': int(current_time.timestamp()),  # Convert to UNIX timestamp
-                    'month': current_time.month
+                    'month': current_time.month,
+                    'thi': round(thi, 2)  # Add THI to the weather data
                 }
                 self.weather_data_accumulated.append(weather_data)
                 if len(self.weather_data_accumulated) >= 60:

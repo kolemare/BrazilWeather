@@ -104,9 +104,6 @@ class Marshaller:
                 if self.runtime.system_shutdown:
                     break
 
-                if not self.runtime.hadoop_services or not self.runtime.hadoop_status:
-                    break
-
                 if not self.runtime.loader_status:
                     if self.alive_ping("loader"):
                         self.runtime.loader_status = True
@@ -114,6 +111,9 @@ class Marshaller:
                     else:
                         self.runtime.loader_status = False
                         break
+
+                if not self.runtime.hadoop_services or not self.runtime.hadoop_status:
+                    break
 
                 if item not in self.runtime.loader_completed:
                     response = self.send_request_and_wait("loader", f"load:{item}", self.runtime.time_threshold)
@@ -173,9 +173,6 @@ class Marshaller:
         while not self.runtime.system_shutdown:
             self.default_sleep()
 
-            if not self.runtime.hadoop_services or not self.runtime.hadoop_status:
-                continue
-
             if not self.runtime.processor_status:
                 if self.alive_ping("processor"):
                     self.runtime.processor_status = True
@@ -183,6 +180,9 @@ class Marshaller:
                 else:
                     self.runtime.processor_status = False
                     continue
+
+            if not self.runtime.hadoop_services or not self.runtime.hadoop_status:
+                continue
 
             for group in self.runtime.task_clusters:
                 task_group_processed = True

@@ -11,6 +11,7 @@ import pandas as pd
 import sqlite3
 import threading
 import os
+import numpy as np
 from PIL import Image, ImageTk
 import seaborn as sns
 
@@ -67,38 +68,8 @@ class UISystem:
         self.button = tk.Button(first_row_frame, text="Request ", command=self.plot_data)
         self.button.pack(side=tk.LEFT)
 
-        # Second row of widgets
-        second_row_frame = tk.Frame(widget_frame)
-        second_row_frame.pack(side=tk.TOP, fill=tk.X)
-
-        # Label for real-time region selection
-        self.rt_region_label = tk.Label(second_row_frame, text="Region:")
-        self.rt_region_label.pack(side=tk.LEFT)
-
-        # Dropdown for real-time region selection (same as the first region dropdown)
-        self.rt_region_var = tk.StringVar()
-        self.rt_region_dropdown = ttk.Combobox(second_row_frame, textvariable=self.rt_region_var,
-                                               values=["central_west", "north", "northeast", "south", "southeast",
-                                                       "all"])
-        self.rt_region_dropdown.pack(side=tk.LEFT)
-
-        # Label for real-time data type selection
-        self.rt_data_label = tk.Label(second_row_frame, text="Operation:")
-        self.rt_data_label.pack(side=tk.LEFT)
-
-        # Dropdown for real-time data type selection
-        self.rt_operation_var = tk.StringVar()
-        self.rt_data_dropdown = ttk.Combobox(second_row_frame, textvariable=self.rt_operation_var,
-                                             values=["temp_rt", "pressure_rt", "humidity_rt", "wind_speed_rt",
-                                                     "wind_direction_rt"])
-        self.rt_data_dropdown.pack(side=tk.LEFT)
-
-        # Entry box for real-time numerical input (same as the first numeric entry)
-        self.rt_numeric_entry = tk.Entry(second_row_frame, width=5)
-        self.rt_numeric_entry.pack(side=tk.LEFT)
-
         # Button for real-time data request
-        self.rt_button = tk.Button(second_row_frame, text="Realtime", command=self.realtime_plot)
+        self.rt_button = tk.Button(first_row_frame, text="Realtime", command=self.realtime_plot)
         self.rt_button.pack(side=tk.LEFT)
 
         # Frame for the shutdown button
@@ -148,15 +119,28 @@ class UISystem:
         else:
             self.comm.client.publish("marshaller",
                                      f"{self.region_var.get()}:{self.operation_var.get()}:{int(self.numeric_entry.get())}")
-            self.show_message("Requesting data availability...")
+            self.show_message("Requesting history data availability...")
 
     def realtime_plot(self):
         # Check if all fields are filled
-        if not self.rt_operation_var.get() or not self.rt_region_var.get() or not self.rt_numeric_entry.get():
+        if not self.operation_var.get() or not self.region_var.get() or not self.numeric_entry.get():
             # Clear the plot and display a message
             self.show_message("Please fill all fields for real-time data")
         else:
-            pass
+            if self.region_var.get() == "all":
+                self.show_message(f"System does not support realtime processing for all regions.")
+            elif self.operation_var.get() == "avg_temp":
+                self.plot_realtime_temp(self.operation_var.get(), self.region_var.get(), int(self.numeric_entry.get()))
+            elif self.operation_var.get() == "pressure_extremes":
+                self.plot_realtime_pressure(self.operation_var.get(), self.region_var.get(), int(self.numeric_entry.get()))
+            elif self.operation_var.get() == "thermal_humidity_index":
+                self.plot_realtime_thi(self.operation_var.get(), self.region_var.get(), int(self.numeric_entry.get()))
+            elif self.operation_var.get() == "wind_speed":
+                self.plot_realtime_wind_speed(self.operation_var.get(), self.region_var.get(), int(self.numeric_entry.get()))
+            elif self.operation_var.get() == "wind_direction_distribution":
+                self.plot_realtime_wind_direction_probability(self.operation_var.get(), self.region_var.get(), int(self.numeric_entry.get()))
+            else:
+                self.show_message(f"System does not support realtime processing for {self.operation_var.get()}")
 
     def query_and_plot(self, operation, region, period):
         self.comm.send_ui_info(f"Plotting {operation} for {region} for {period}.")
@@ -400,6 +384,338 @@ class UISystem:
             self.canvas.draw()
         else:
             self.show_message("No data available")
+
+    def plot_realtime_temp(self, operation, region, period):
+        self.show_message("No data available for plotting.")
+        # First, fetch the historical and real-time data
+        df_history = DaoHandler.get_table(operation, region, period)
+        realtime_df = DaoHandler.get_realtime_table(region)
+
+        # Check if the DataFrames are not empty
+        if not df_history.empty and not realtime_df.empty:
+            # Calculate average temperature per province in the real-time DataFrame
+            realtime_avg_temp = (
+                realtime_df
+                .groupby('prov')['temperature']
+                .mean()
+                .reset_index()
+                .rename(columns={'temperature': 'avg_realtime_temp'})
+            )
+            # Combine historical and real-time data
+            combined_data = pd.merge(
+                df_history[['prov', 'avg_temp', 'year', 'month']],
+                realtime_avg_temp,
+                on='prov',
+                how='inner'
+            )
+            # If there's no matching data after filtering, show a message and exit
+            if combined_data.empty:
+                self.show_message(f"No data available for {period}")
+                return
+
+            # Set up bar positions
+            n = len(combined_data)
+            index = np.arange(n)
+            bar_width = 0.35
+
+            # Convert the 'date' column to datetime format
+            df_history['date'] = pd.to_datetime(df_history['date'], unit='ms')
+
+            # Calculate the minimum and maximum dates
+            min_date = df_history['date'].min().strftime('%Y-%m-%d')
+            max_date = df_history['date'].max().strftime('%Y-%m-%d')
+
+            self.plot.clear()
+
+            # Create bars for average and real-time temperatures
+            self.plot.bar(index, combined_data['avg_temp'], bar_width, label='Average Temp', color='blue')
+            self.plot.bar(index + bar_width, combined_data['avg_realtime_temp'], bar_width, label='Real-time Temp',
+                          color='red', alpha=0.5)
+
+            # Set plot labels and title
+            self.plot.set_xlabel('Province')
+            self.plot.set_ylabel('Temperature (°C)')
+            self.plot.set_title(f'Real-time vs Average Temperature for {region} from {min_date} to {max_date}')
+            self.plot.set_xticks(index + bar_width / 2)
+            self.plot.set_xticklabels(combined_data['prov'], rotation=45)
+
+            # Show legend
+            self.plot.legend()
+
+            # Draw the updated plot
+            self.canvas.draw()
+        else:
+            self.show_message("No data available for plotting.")
+
+    def plot_realtime_pressure(self, operation, region, period):
+        self.show_message("No data available for plotting.")
+        # First, fetch the historical and real-time data
+        df_history = DaoHandler.get_table(operation, region, period)
+        realtime_df = DaoHandler.get_realtime_table(region)
+
+        # Check if the DataFrames are not empty
+        if not df_history.empty and not realtime_df.empty:
+            # Calculate average pressure per province in the real-time DataFrame
+            realtime_avg_pressure = (
+                realtime_df
+                .groupby('prov')['pressure']
+                .mean()
+                .reset_index()
+                .rename(columns={'pressure': 'avg_realtime_pressure'})
+            )
+
+            # Combine historical and real-time data
+            combined_data = pd.merge(
+                df_history[['prov', 'min_pressure', 'max_pressure', 'date']],
+                realtime_avg_pressure,
+                on='prov',
+                how='inner'
+            )
+
+            # Convert the 'date' column to datetime format
+            combined_data['date'] = pd.to_datetime(combined_data['date'], unit='ms')
+
+            # Calculate the minimum and maximum dates
+            min_date = combined_data['date'].min().strftime('%Y-%m-%d')
+            max_date = combined_data['date'].max().strftime('%Y-%m-%d')
+
+            # Calculate pressure differences
+            combined_data['pressure_above_min'] = (
+                    (combined_data['avg_realtime_pressure'] - combined_data['min_pressure']) / combined_data['min_pressure'] * 100
+            )
+            combined_data['pressure_below_max'] = (
+                    (combined_data['max_pressure'] - combined_data['avg_realtime_pressure']) / combined_data['max_pressure'] * 100
+            )
+
+            # If there's no matching data after filtering, show a message and exit
+            if combined_data.empty:
+                self.show_message(f"No data available for {period}")
+                return
+
+            # Set up bar positions
+            n = len(combined_data)
+            index = np.arange(n)
+            bar_width = 0.35
+
+            self.plot.clear()
+
+            # Create bars for pressure differences
+            self.plot.bar(index, combined_data['pressure_above_min'], bar_width, label='Pressure Above Min (%)',
+                          color='blue')
+            self.plot.bar(index + bar_width, combined_data['pressure_below_max'], bar_width,
+                          label='Pressure Below Max (%)',
+                          color='red', alpha=0.5)
+
+            # Set plot labels and title
+            self.plot.set_xlabel('Province')
+            self.plot.set_ylabel('Pressure Difference (%)')
+            self.plot.set_title(f'Pressure Differences for {region} from {min_date} to {max_date}')
+            self.plot.set_xticks(index + bar_width / 2)
+            self.plot.set_xticklabels(combined_data['prov'], rotation=45)
+
+            # Show legend
+            self.plot.legend()
+
+            # Draw the updated plot
+            self.canvas.draw()
+        else:
+            self.show_message("No data available for plotting.")
+
+    def plot_realtime_thi(self, operation, region, period):
+        self.show_message("No data available for plotting.")
+        # First, fetch the historical and real-time data
+        df_history = DaoHandler.get_table(operation, region, period)
+        realtime_df = DaoHandler.get_realtime_table(region)
+
+        # Check if the DataFrames are not empty
+        if not df_history.empty and not realtime_df.empty:
+            # Calculate average THI per province in the real-time DataFrame
+            realtime_avg_thi = (
+                realtime_df
+                .groupby('prov')['thi']
+                .mean()
+                .reset_index()
+                .rename(columns={'thi': 'avg_realtime_thi'})
+            )
+
+            # Combine historical and real-time data
+            combined_data = pd.merge(
+                df_history[['prov', 'avg_thi', 'year', 'month']],
+                realtime_avg_thi,
+                on='prov',
+                how='inner'
+            )
+
+            # If there's no matching data after filtering, show a message and exit
+            if combined_data.empty:
+                self.show_message(f"No data available for {period}")
+                return
+
+            # Set up bar positions
+            n = len(combined_data)
+            index = np.arange(n)
+            bar_width = 0.35
+
+            # Convert the 'date' column to datetime format
+            df_history['date'] = pd.to_datetime(df_history['date'], unit='ms')
+
+            # Calculate the minimum and maximum dates
+            min_date = df_history['date'].min().strftime('%Y-%m-%d')
+            max_date = df_history['date'].max().strftime('%Y-%m-%d')
+
+            self.plot.clear()
+
+            # Create bars for average and real-time THI
+            self.plot.bar(index, combined_data['avg_thi'], bar_width, label='Average THI', color='blue')
+            self.plot.bar(index + bar_width, combined_data['avg_realtime_thi'], bar_width, label='Real-time THI',
+                          color='red', alpha=0.5)
+
+            # Set plot labels and title
+            self.plot.set_xlabel('Province')
+            self.plot.set_ylabel('THI')
+            self.plot.set_title(f'Real-time vs Average THI for {region} from {min_date} to {max_date}')
+            self.plot.set_xticks(index + bar_width / 2)
+            self.plot.set_xticklabels(combined_data['prov'], rotation=45)
+
+            # Show legend
+            self.plot.legend()
+
+            # Draw the updated plot
+            self.canvas.draw()
+        else:
+            self.show_message("No data available for plotting.")
+
+    def plot_realtime_wind_speed(self, operation, region, period):
+        self.show_message("No data available for plotting.")
+        # First, fetch the historical and real-time data
+        df_history = DaoHandler.get_table(operation, region, period)
+        realtime_df = DaoHandler.get_realtime_table(region)
+
+        # Check if the DataFrames are not empty
+        if not df_history.empty and not realtime_df.empty:
+            # Calculate average wind speed per province in the real-time DataFrame
+            realtime_avg_wind_speed = (
+                realtime_df
+                .groupby('prov')['wind_speed']
+                .mean()
+                .reset_index()
+                .rename(columns={'wind_speed': 'avg_realtime_wind_speed'})
+            )
+
+            # Combine historical and real-time data
+            combined_data = pd.merge(
+                df_history[['prov', 'avg_wind_speed', 'year', 'month']],
+                realtime_avg_wind_speed,
+                on='prov',
+                how='inner'
+            )
+
+            # If there's no matching data after filtering, show a message and exit
+            if combined_data.empty:
+                self.show_message(f"No data available for {period}")
+                return
+
+            # Set up bar positions
+            n = len(combined_data)
+            index = np.arange(n)
+            bar_width = 0.35
+
+            # Convert the 'date' column to datetime format
+            df_history['date'] = pd.to_datetime(df_history['date'], unit='ms')
+
+            # Calculate the minimum and maximum dates
+            min_date = df_history['date'].min().strftime('%Y-%m-%d')
+            max_date = df_history['date'].max().strftime('%Y-%m-%d')
+
+            self.plot.clear()
+
+            # Create bars for average and real-time wind speeds
+            self.plot.bar(index, combined_data['avg_wind_speed'], bar_width, label='Average Wind Speed', color='blue')
+            self.plot.bar(index + bar_width, combined_data['avg_realtime_wind_speed'], bar_width,
+                          label='Real-time Wind Speed', color='red', alpha=0.5)
+
+            # Set plot labels and title
+            self.plot.set_xlabel('Province')
+            self.plot.set_ylabel('Wind Speed (m/s)')
+            self.plot.set_title(f'Real-time vs Average Wind Speed for {region} from {min_date} to {max_date}')
+            self.plot.set_xticks(index + bar_width / 2)
+            self.plot.set_xticklabels(combined_data['prov'], rotation=45)
+
+            # Show legend
+            self.plot.legend()
+
+            # Draw the updated plot
+            self.canvas.draw()
+        else:
+            self.show_message("No data available for plotting.")
+
+    def plot_realtime_wind_direction_probability(self, operation, region, period):
+        self.show_message("No data available for plotting.")
+        # First, fetch the historical and real-time data
+        df_history = DaoHandler.get_table(operation, region, period)
+        realtime_df = DaoHandler.get_realtime_table(region)
+
+        # Check if the DataFrames are not empty
+        if not df_history.empty and not realtime_df.empty:
+            # Calculate the average wind direction per province in the real-time DataFrame
+            realtime_avg_wind_direction = (
+                realtime_df
+                .groupby('prov')['wind_direction']
+                .apply(lambda x: x.mode().iloc[0] if not x.mode().empty else 'Unknown')
+                .reset_index()
+                .rename(columns={'wind_direction': 'avg_realtime_wind_direction'})
+            )
+
+            # Combine historical and real-time data
+            combined_data = pd.merge(
+                df_history[['prov', 'N', 'E', 'S', 'W', 'year', 'month']],
+                realtime_avg_wind_direction,
+                on='prov',
+                how='inner'
+            )
+
+            # Calculate the total occurrences of each wind direction in the historical data
+            combined_data['total_counts'] = combined_data[['N', 'E', 'S', 'W']].sum(axis=1)
+
+            # Calculate the probability of the average wind direction
+            combined_data['probability'] = combined_data.apply(
+                lambda row: (row[row['avg_realtime_wind_direction']] / row['total_counts']) * 100 if row['total_counts'] > 0 else 0,
+                axis=1
+            )
+
+            # Set up bar positions
+            n = len(combined_data)
+            index = np.arange(n)
+            bar_width = 0.35
+
+            # Convert the 'date' column to datetime format
+            df_history['date'] = pd.to_datetime(df_history['date'], unit='ms')
+
+            # Calculate the minimum and maximum dates
+            min_date = df_history['date'].min().strftime('%Y-%m-%d')
+            max_date = df_history['date'].max().strftime('%Y-%m-%d')
+
+            self.plot.clear()
+
+            # Create bars for wind direction probability
+            self.plot.bar(index, combined_data['probability'], bar_width,
+                          label=f'Probability of {combined_data["avg_realtime_wind_direction"].iloc[0]}', color='blue')
+
+            # Set plot labels and title
+            self.plot.set_xlabel('Province')
+            self.plot.set_ylabel('Probability (%)')
+            self.plot.set_title(
+                f'Probability of Average Wind Direction for {region} from {min_date} to {max_date}')
+            self.plot.set_xticks(index + bar_width / 2)
+            self.plot.set_xticklabels(combined_data['prov'], rotation=45)
+
+            # Show legend
+            self.plot.legend()
+
+            # Draw the updated plot
+            self.canvas.draw()
+        else:
+            self.show_message("No data available for plotting.")
 
     def shutdown(self):
         self.comm.send_ui_info("Requesting shutdown...")
