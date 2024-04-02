@@ -1,6 +1,6 @@
-# Project Title
+# Brazil Weather Analysis
 
-Brief description of your project.
+**Historical and realtime analysis of climate for surface of Brazil** 
 
 ## Table of Contents
 - [About the Dataset](#about-the-dataset)
@@ -10,14 +10,16 @@ Brief description of your project.
   - [Realtime Processing Questions](#realtime-processing-questions)
 - [Repository Structure](#repository-structure)
 - [Getting Started](#getting-started)
-- [Usage](#usage)
 - [Architecture](#architecture)
 - [Components](#components)
-  - [Component 1](#component-1)
-  - [Component 2](#component-2)
-- [Communication](#communication)
-  - [Subheading 1](#subheading-1)
-  - [Subheading 2](#subheading-2)
+  - [Marshaller](#marshaller)
+  - [Processor](#processor)
+  - [Loader](#loader)
+  - [Transformer](#transformer)
+  - [Hadoop](#hadoop)
+  - [Realtime](#realtime)
+  - [UI](#ui)
+  - [Mosquitto](#mosquitto)
 - [Scripts](#scripts)
 
 ## About the Dataset
@@ -73,22 +75,19 @@ The dataset includes the following data:
 ## About the Project
 
 ### Introduction
-```
-This project focuses on designing and implementing an architecture for processing large datasets,  
-demonstrated through data transformation, analysis, and presentation.  
-It utilizes two datasets from distinct sources, with the primary dataset containing historical data with size of 10.11GB,  
-and secondary dataset of getting realtime information from **OpenWeatherApi** once per second per city/region.  
-A data lake with raw, transformation, and curated zones is created, and the loading of the dataset into the data lake is automated.  
-The system's architecture is divided into 8 Docker containers for modular communication, and shell scripts are provided   
-for easy system usage. Data processing includes batch processing with at least 10 complex queries/transformations and  
-real-time processing with up to 5 complex data stream transformations. Results are visualized for the end-user,  
-and mechanisms for automated data processing are in place. The entire system is designed to be fully automated,  
-ensuring seamless operation and efficiency in handling large-scale data processing tasks.  
-```
+This project focuses on designing and implementing an architecture for processing large datasets,
+demonstrated through data transformation, analysis, and presentation.
+It utilizes two datasets from distinct sources, with the primary dataset containing historical data with size of 10.11GB,
+and secondary dataset of getting realtime information from **OpenWeatherApi** once per second per city/region.
+A data lake with raw, transformation, and curated zones is created, and the loading of the dataset into the data lake is automated.
+The system's architecture is divided into 8 Docker containers for modular communication, and shell scripts are provided
+for easy system usage. Data processing includes batch processing with 10 complex queries/transformations and
+real-time processing with 5 complex data transformations. Results are visualized for the end-user,
+and mechanisms for automated data processing are in place. The entire system is designed to be fully automated,
+ensuring seamless operation and efficiency in handling large-scale data processing tasks.
 
 ### Batch Processing Questions
 
-```
 1. What is the average temperature for each province in the specified region over the last few months?
 2. How much total rainfall has each province in the specified region received in each month of the period?
 3. What are the highest and lowest atmospheric pressures recorded in each province of the specified region over the selected period?
@@ -99,7 +98,6 @@ ensuring seamless operation and efficiency in handling large-scale data processi
 8. What is the average Temperature-Humidity Index (THI) for each province in the specified region over the selected period?
 9. What is the range of dew point temperatures for each province in the specified region over the last few months?
 10. How variable is the air temperature in each province of the specified region over the selected period?
-```
 
 ### Realtime Processing Questions
 
@@ -180,42 +178,143 @@ BrazilWeather/
 To set up the project and build the Docker containers, follow these steps:
 
 1. Run the `completeSetup.sh` script to prepare the environment for the Docker containers.
-2. Download the dataset manually from the link provided in [About the Dataset](#about-the-dataset)    
-since the `downloadDataSet.sh` script requires a `credentials.json` file,  
-which is not available in the repository (these are credentials to download dataset hosted in private googledrive).   
-After downloading, extract the dataset into the `v30_Dataset` directory.  
-3. Run the `buildDockerImages.sh` script to build all 8 Docker images for the system.
-4. To start the Docker containers, run the `startSystem.sh` script.
+2. Download the dataset manually from the link provided in [About the Dataset](#about-the-dataset)
+since the `downloadDataSet.sh` script requires a `credentials.json` file,
+which is not available in the repository (these are credentials to download dataset hosted in private Google Drive).
+After downloading, extract the dataset into the `v30_Dataset` directory.
+3. In v50_Components/Realtime_comp create a json file names ```apikey.json``` which has to be structured:  
+  ```
+  {  
+    "key" : "your_openweather_api_key"  
+  }  
+  ```
+4. Run the `buildDockerImages.sh` script to build all 8 Docker images for the system.
+5. To start the Docker containers, run the `startSystem.sh` script.
 
 The responsibilities of each script will be discussed in detail in the Scripts section.
 
 ## Architecture
+The system architecture is designed to be modular and scalable, with components split into 8 Docker containers.  
+The Marshaller component plays a crucial role in orchestrating other containers.
+None of the containers except Marshaller once started won't do anything on their own, they are listening for requests
+on certain topic required for them, processing the request and sending the response back to Marshaller.
+They have internal logic of how different requests are processed and what the response shall be.  
 
-Description of the architecture of your project.
+Marshaller communicates in parallel by creating a separate thread for each container, ensuring efficient handling
+of requests and responses, it also has its own runtime, where thread safe objects are stored required for managing
+what requests will be sent to which components. Reason behind that is that components are dependent, in terms of
+their previous work can enable/disable processing certain requests of other componentes.  
 
-## Usage
+Communication within each thread is synchronous, following a request-response model. This approach allows for precise
+control over the flow of data and ensures that each component receives the necessary information in a timely manner.  
 
-Examples of how to use your project.
+Specifically, communication between the Hadoop component and the Loader, as well as between Hadoop and the Transformer,
+is achieved through HTTP. This choice of communication protocol enables seamless data transfer between these components,
+facilitating efficient data processing and transformation.
+
+Similarly, the communication between the Processor and Hadoop also utilizes HTTP, ensuring consistency and reliability
+in data exchange.
+
+Once the system is started Marshaller as a first request will try to ping all containers before sending them tasks,
+once component replies that it is alive it will start to handle requests from Marshaller.  
+
+Each request has its preconfigured timeout, when broken Marshaller will proclaim component to be dead and try to ping
+again until getting the required response.  
+
+With runtime keeping track of what is processed and what isn't same requests for data processing won't be sent to
+components, even if their stop responding to requests and come back alive later.
+Failed requests will be sent again and failed tasks will be rescheduled.
+
+Once the component is not needed anymore Marshaller will send a **shutdown** command to that component, this will happen
+only for Loader and Transformer since their work is defined on the data by itself.
+There is a possibility for UI component to request shutdown of the whole system to Marshaller where all the componentes 
+will receive the shutdown command, and once all componentes are down Marshaller will shutdown itself.
+
+Each component also publishes information about its current behavior on the info topic which is listened by the Logger.
+This only applies to their procedure of processing certain request, not the request itself, like debugging prints.
+Depending on from which component the information was gathered Logger will output that data in colour of that component.
+This is done so all docker containers don't need to be run in interactive mode in separate terminals
+except Marshaller, which will output all the logs that won't be cluttered since it is in the same container as Logger.  
+
+![Architecture](architecture.jpg)
+
 
 ## Components
 
-### Component 1
+### Marshaller
 
-Description of a component in your project.
+Marshaller component is already described in [Architecture](#Architecture), though there are some things to mention:
+1. Marshaller does not get requests from the other components except the UI
+2. Apart from the Marshaller's runtime containing thread-safe objects it contains configuration as well:  
+  -**data** -> which raw data (regions of Brazil) will be processed by Loader, Transformer and Processor  
+  -**realtime_tasks** configuration that will be sent to realtime processing (regions)  
+  -**alive_ping** time threshold for alive request  
+  -**max_wait_time** time threshold for requests  
+  -**hadoop_boot** time threshold for starting and stopping hadoop services  
+  -**default_sleep** time sleep between 2 successive requests to each component  
+  -**port** port which Marshaller uses to publish and receive messages from Mosquitto  
+  -**batch_tasks** list of tasks that will be sent to processor for batch processing, each contains the region,
+  operation and period of how many months of data shall be processed in the past from the newest data  
+3. Since processor is only capable of processing one region, loaded from Hadoop, it will reorganize the order of
+  configured tasks by region, so there is no need to require processor to load different region for each task.
+  This kind of creates batch processing per region with mini-batches per operation.
+4. Marshaller uses dequeue to schedule tasks for processor, with the reason being that apart from configuration,
+  requests for batch processing can come directly from the UI to Marshaller, so it has to give them priority.
+  If user specifies batch processing for all regions then Marshaller will create a task for each region.
+  This can provoke the system to run slower due to fact that it has successive prioritized tasks for different regions.
+  With this approach Marshaller keeps track of **task clusters** and **singular tasks** that were requested by user,
+  so once it is done it will send info to user which will automatically display the results for asked operation.
+  UI is using tkinter which is STA(Single Thread Apartment) so the UI won't be frozen from time of sending the request
+  until getting the data. Now UI is capable of spamming Marshaller with requests.
+5. So if calculation for one region was already processed by the processor with a given history period, if there is new
+  task with same operation and region but lower history period, that task won't be processed (already is).
+6. Marshaller as mentioned before keeps track for all components and their history.  
 
-### Component 2
+### Processor
 
-Description of another component in your project.
+Processor does not have any idea what has been processed and about the dequeue. It just gets the request,
+makes a calculation and sends the response of outcome to Marshaller. 
+If calculation was successful sends the data to UI(**database**), 
+which is displayed by UI. Also it is aware of which region is currently loaded.  
 
-## Communication
 
-### Subheading 1
+### Loader
 
-Details about a specific aspect of communication in your project.
+Loader has wrapped raw data set in its container, once receives the request for region takes respectful **csv** 
+gives semantic to data by naming columns, giving them data type, wrapping them in **parquet** format 
+and sends it to Hadoop. Gives proper response based on the outcome of operation back to Marshaller.  
 
-### Subheading 2
+### Transformer
 
-Details about another aspect of communication in your project.
+Transformer gets requests from Marshaller (**parquet files**) to transform(**clean**) different regions where
+certain columns are removed, not needed for processing and removes hanging data with NULL values for some columns.
+Dataset is vast so there is no need to organize it so same periods in history have same amount of data. Once the
+region is transformed it sends it back to Hadoop. Gives proper response to Marshaller regarding the request outcome.  
+
+### Hadoop
+Once being created it executes the script called ```configureHadoop.sh``` which configures ports and ip address.
+This component also wraps ```startHadoopService.sh``` and ```stopHadoopServices.sh``` which get called once Marshaller
+requests Hadoop to start or stop its service.  
+
+
+### Realtime
+Realtime component gets configuration from Marshaller for which regions to acquire the data.
+it holds its own city_province mapping per region, so it will be able to send requests to **OpenWeatherAPI** for
+configured regions. Requests are being sent every second (**free API limit**) and the results are being accumulated.
+Once it accumulates 60 readings, it will process them by calculating **THI**, Temperature in *°C*, direction of the wind
+based on wind degrees etc. and the results will be sent to DAO in ui container.  
+
+### UI
+UI image is using tkinter python library as the ui interface. The information that is contained in the database will
+be plotted in different style with matplotlib based on what shall be displayed on UI (what the user has requested),
+batch and realtime wise. Database on the UI side is actually small and contains the final results of the batch and
+realtime processing. Since UI is running in docker container it must use host's network unlike all other containers
+that are communicating on the virtual **docker-network**, so there is a need to provide it IP address of Mosquitto.
+This container gets the environment variable **DISPLAY**, so it will be able to forward the UI to host (**X11**).  
+
+### Mosquitto
+
+Mosquitto
 
 
 ## Scripts
