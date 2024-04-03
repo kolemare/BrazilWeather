@@ -21,6 +21,11 @@
   - [UI](#ui)
   - [Mosquitto](#mosquitto)
 - [Scripts](#scripts)
+  - [Building docker images](#building-docker-images)
+  - [Clearing](#clearing)
+  - [Complete setup](#complete-setup)
+  - [Configure SSH](#configure-ssh)
+  - [Start SYSTEM](#start-system)
 
 ## About the Dataset
 
@@ -101,7 +106,11 @@ ensuring seamless operation and efficiency in handling large-scale data processi
 
 ### Realtime Processing Questions
 
-Questions related to realtime processing in your project.
+1. How does the average real-time temperature compare to the historical average temperature across provinces in a specific region over a given period?
+2. How do the pressure variations above the minimum and below the maximum compare across provinces in a specific region over a given period, in comparison to historical pressure data?
+3. How does the real-time Temperature-Humidity Index (THI) compare to the average THI across provinces in a specific region over a given period?
+4. How does the real-time wind speed compare to the average wind speed across provinces in a specific region over a given period?
+5. What would be the probability of average wind direction calculated from real-time data occurring during in same region and province over a given period?
 
 ## Repository Structure
 
@@ -254,8 +263,8 @@ Marshaller component is already described in [Architecture](#Architecture), thou
   -**default_sleep** time sleep between 2 successive requests to each component  
   -**port** port which Marshaller uses to publish and receive messages from Mosquitto  
   -**batch_tasks** list of tasks that will be sent to processor for batch processing, each contains the region,
-  operation and period of how many months of data shall be processed in the past from the newest data  
-3. Since processor is only capable of processing one region, loaded from Hadoop, it will reorganize the order of
+  operation and period of how many months of data shall be processed in the past from the newest data
+3. Since processor is only capable of processing one region, loaded from Hadoop, Marshaller will reorganize the order of
   configured tasks by region, so there is no need to require processor to load different region for each task.
   This kind of creates batch processing per region with mini-batches per operation.
 4. Marshaller uses dequeue to schedule tasks for processor, with the reason being that apart from configuration,
@@ -273,9 +282,10 @@ Marshaller component is already described in [Architecture](#Architecture), thou
 ### Processor
 
 Processor does not have any idea what has been processed and about the dequeue. It just gets the request,
-makes a calculation and sends the response of outcome to Marshaller. 
-If calculation was successful sends the data to UI(**database**), 
-which is displayed by UI. Also it is aware of which region is currently loaded.  
+makes a calculation and sends the outcome response to Marshaller. If calculation was successful Processor,
+sends the data to UI(**database**). If the calculation was requested from UI Marshaller will notify the UI that 
+request is ready and callback function will be called to display the results.
+It is aware of which region is currently loaded.  
 
 
 ### Loader
@@ -314,9 +324,70 @@ This container gets the environment variable **DISPLAY**, so it will be able to 
 
 ### Mosquitto
 
-Mosquitto
-
+Mosquitto is broker for pub-sub service communication.
+It's docker container contains mosquitto.conf which allows listens on port 1883
+and allows anonymous connections.
 
 ## Scripts
 
-Explanation of the scripts included in your project.
+### Building docker images
+
+```buildDockerImages.sh```  
+
+The Docker Image Management Script automates the process of building Docker images for a project's components. 
+It simplifies image creation by executing the necessary Docker commands and provides flexibility through flag-based 
+options to build specific components or clean up existing images.
+
+
+### Clearing
+
+```clear.sh```
+
+This Bash script serves to remove specific directories or their contents based on provided arguments. 
+It begins by retrieving the directory path of the script itself. Two functions, delete_folder() and delete_contents(), 
+are defined to handle directory deletion. The script then employs a case statement to evaluate the provided argument 
+and execute the corresponding deletion function accordingly. The supported arguments include --all to remove multiple 
+directories at once, --dataset, --hadoop, --kafka, and --venv to remove specific directories, 
+and a default action to remove a set of predefined directories. [^1]
+
+
+
+### Complete Setup
+
+```completeSetup.sh```
+
+This Bash script automates the setup process for a development environment by installing and configuring necessary 
+dependencies. It begins by updating the package list and then checks for Java installation. If Java is not found or an 
+unsuitable version is detected, OpenJDK 8 is installed. It then installs Python 3.10, along with its dependencies and 
+build essentials. The script creates a virtual environment named "venv" and installs required Python libraries 
+using pip. Furthermore, if Hadoop and Kafka directories are not present, the script downloads, extracts, and sets up 
+Hadoop version 3.3.6 and Kafka version 3.6.1, respectively. Lastly, SQLite is installed if not already present, 
+and the setup is completed. [^1]
+
+
+### Configure SSH
+
+```configureSSH.sh```
+
+This Bash script automates SSH configuration. It first checks whether the SSH server is active, if not, 
+it installs and starts the SSH server. The script then creates the SSH directory if it doesn't exist and generates 
+an SSH key pair if one isn't already present. It adds the generated SSH public key to the authorized_keys file, 
+enabling passwordless SSH access to localhost. Finally, the script completes the SSH configuration process, 
+ensuring a smooth setup for SSH usage. Script ```configureHadoop.sh``` also creates configures SSH in that container.
+
+
+### Start SYSTEM
+
+```startSystem.sh```
+
+This Bash script orchestrates the setup of various Docker containers for a multi-container application. 
+It begins by stopping and removing all existing Docker containers and networks. Then, it creates a new Docker 
+network named "docker-network" to facilitate communication between containers. Subsequently, 
+it starts containers for an MQTT broker, Hadoop, Loader, Transformer, Processor, Realtime, and UI components, 
+all connected to the created network. Notably, the UI container is started with graphical capabilities enabled 
+to display a user interface, and the MQTT broker's IP address is passed as an environment variable. Finally,
+the Marshaller container is launched in interactive mode for manual interaction. Overall, the script automates 
+the deployment and interconnection of Docker containers for the specified components of the application.
+
+
+[^1]: Kafka was planned but not used in the project.
